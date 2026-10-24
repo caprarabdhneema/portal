@@ -1,0 +1,11 @@
+/*
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+/p/*
+  Cache-Control: no-store
+  Access-Control-Allow-Origin: *
+/index.html
+  Cache-Control: no-cache
