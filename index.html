@@ -55,6 +55,15 @@ nav.tabs button{background:none;border:0;padding:12px 12px 10px;color:var(--mute
 nav.tabs button:hover{color:var(--ink)} nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold)}
 .stack{display:flex;flex-direction:column;gap:16px} .grid{display:grid;gap:16px}
 .cols-4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))} .cols-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.cgrp{border:1px solid var(--line);border-radius:10px;padding:8px 10px 10px;margin:0;min-width:0}.cgrp legend{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);padding:0 4px}
+.cchk{display:flex;gap:8px;align-items:flex-start;padding:5px 2px;cursor:pointer;font-size:13.5px}.cchk input{width:auto;margin-top:3px}.cchk .meta{display:block}
+.bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}.bar i{display:block;height:100%;background:var(--in)}
+.linkish{background:none;border:0;padding:0;font:inherit;color:var(--ink);font-weight:600;cursor:pointer;text-align:left}.linkish:hover{color:var(--accent);text-decoration:underline}
+.cst,.csf{padding:5px 8px;font-size:13px;min-width:0;width:auto}
+.split.ltsplit{grid-template-columns:minmax(0,290px) minmax(0,1fr)}.ltsplit .lrow span:first-child{white-space:normal}
+.ltwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:start}.ltprev{position:sticky;top:12px}
+@media (max-width:1180px){.ltwrap{grid-template-columns:minmax(0,1fr)}.ltprev{position:static}}
+@media (max-width:860px){.split.ltsplit{grid-template-columns:minmax(0,1fr)}}
 .split{display:grid;gap:16px;grid-template-columns:minmax(0,310px) minmax(0,1fr)} @media (max-width:860px){.split{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
 .panel-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -2561,11 +2570,12 @@ const DEFAULT_TPL = {
   invoice: "Dear {client},\n\nPlease find attached our invoice {invoice_no} dated {invoice_date} for {amount} towards {service}. We request you to kindly arrange the payment by {due_date}.\n\nPayment details:\n{bank}\n\nThank you for your continued trust.\n\nWarm regards,\n{signatory}\n{firm}",
   reminder: "Dear {client},\n\nThis is a gentle reminder that an amount of {due} is outstanding towards our professional fees as on {today}:\n{details}\n\nWe request you to kindly arrange the payment at the earliest. Please ignore this message if the payment has already been made.\n\nPayment details:\n{bank}\n\nWarm regards,\n{signatory}\n{firm}",
   portal: "Dear {client},\n\nYou can now view your account statement, invoices and documents with us online:\n{link}\n\nThe password will be shared with you separately. Please keep it confidential.\n\nWarm regards,\n{signatory}\n{firm}",
+  comp: "Dear {client},\n\nPlease find below the compliances due for {entity} in the coming days, along with any pending items:\n{list}\n\nKindly share the required data and documents at the earliest so that we can file them on time and avoid late fees and interest.\n\nWarm regards,\n{signatory}\n{firm}",
   receipt: "Dear {client},\n\nWe acknowledge with thanks the receipt of {amount} on {date}{tds_text}. Your outstanding balance with us is now {due}.\n\nWarm regards,\n{signatory}\n{firm}",
 };
 function newData(firm, start, cash) {
   const t = nowIso(); const led = sysLedgers(t); led[0].opening = r2(cash);
-  return {v: 2, settings: defaultSettings(firm, start, t), groups: [], ledgers: led, vouchers: [], msgs: [], docs: [], tomb: {}};
+  return {v: 2, settings: defaultSettings(firm, start, t), groups: [], ledgers: led, vouchers: [], msgs: [], docs: [], comp: [], letters: [], log: [], tomb: {}};
 }
 function defaultSettings(firm, start, t) {
   return {id: "settings", updatedAt: t, firm: firm || "Prarabdh Neema & Associates", tagline: "Chartered Accountants",
@@ -2608,20 +2618,22 @@ function ensureSys(d) {
   for (const s of sysLedgers(t)) if (!have.has(s.id) && !names.has(s.name.trim().toLowerCase()) && s.sys) d.ledgers.push(s);
   d.settings = Object.assign(defaultSettings(d.settings.firm, d.settings.booksStart, d.settings.updatedAt || t), d.settings);
   d.settings.tpl = Object.assign({...DEFAULT_TPL}, d.settings.tpl || {});
-  d.groups = d.groups || []; d.msgs = d.msgs || []; d.docs = d.docs || []; d.tomb = d.tomb || {};
+  for (const k of COLLS) d[k] = d[k] || []; d.tomb = d.tomb || {};
 }
 
 // ---------- merge (record-level, newest wins; deletions as tombstones) ----------
 function mergeArr(a, b, tomb) { const m = new Map();
   for (const r of [...(a || []), ...(b || [])]) { const cur = m.get(r.id); if (!cur || (r.updatedAt || "") > (cur.updatedAt || "")) m.set(r.id, r); }
   return [...m.values()].filter(r => !(tomb[r.id] && tomb[r.id] >= (r.updatedAt || ""))); }
+const COLLS = ["groups", "ledgers", "vouchers", "msgs", "docs", "comp", "letters", "log"];
 function mergeData(a, b) {
   if (!a) return b; if (!b) return a;
   const tomb = {...(a.tomb || {})}; for (const [k, v] of Object.entries(b.tomb || {})) if (!tomb[k] || v > tomb[k]) tomb[k] = v;
   const s = (a.settings.updatedAt || "") >= (b.settings.updatedAt || "") ? a.settings : b.settings;
-  return {v: 2, settings: s, groups: mergeArr(a.groups, b.groups, tomb), ledgers: mergeArr(a.ledgers, b.ledgers, tomb), vouchers: mergeArr(a.vouchers, b.vouchers, tomb), msgs: mergeArr(a.msgs, b.msgs, tomb), docs: mergeArr(a.docs, b.docs, tomb), tomb};
+  const out = {v: 2, settings: s, tomb}; for (const k of COLLS) out[k] = mergeArr(a[k], b[k], tomb);
+  if (out.log.length > 3000) out.log = out.log.sort((x, y) => (y.at || "").localeCompare(x.at || "")).slice(0, 3000); return out;
 }
-function fingerprint(d) { const m = new Map(); for (const k of ["groups", "ledgers", "vouchers", "msgs", "docs"]) for (const r of d[k] || []) m.set(r.id, r.updatedAt || ""); m.set("settings", d.settings.updatedAt || ""); for (const [k, v] of Object.entries(d.tomb || {})) m.set("t:" + k, v); return m; }
+function fingerprint(d) { const m = new Map(); for (const k of COLLS.filter(k => k !== "log")) for (const r of d[k] || []) m.set(r.id, r.updatedAt || ""); m.set("settings", d.settings.updatedAt || ""); for (const [k, v] of Object.entries(d.tomb || {})) m.set("t:" + k, v); return m; }
 function aheadOf(a, b) { const fb = fingerprint(b); for (const [k, v] of fingerprint(a)) { const o = fb.get(k); if (o === undefined || v > o) return true; } return false; }
 
 // ---------- invoice maths ----------
@@ -2663,7 +2675,7 @@ const VKEY = {contra: "F4", payment: "F5", receipt: "F6", journal: "F7", sales: 
 
 // ================= state & computations =================
 const S = {locked: true, pw: null, key: null, salt: null, iter: ITER, data: null, fy: fyOf(todayStr()), tab: ls.get("tab", "dash"),
-  f: {month: "all", type: "all", q: ""}, sel: null, lq: "", cq: "", invQ: "", invSt: "all", rep: ls.get("rep", "pl"), msgTab: "remind",
+  f: {month: "all", type: "all", q: ""}, sel: null, lq: "", cq: "", invQ: "", invSt: "all", rep: ls.get("rep", "pl"), msgTab: "remind", cf: {view: "due", cat: "", st: "", staff: "", q: "", month: todayStr().slice(0, 7)}, lt: {view: "new", tpl: null, client: "", date: todayStr(), f: {}, sub: null, body: null, to: null, ref: null, id: null, q: ""},
   saveState: "", fileHandle: null, fileName: "", hasVault: undefined, online: {db: null, user: null, dl: null, mcp: null, ready: false, meta: undefined, baseVer: null}, lastAct: Date.now()};
 let memo = {}; const M = (k, fn) => (k in memo ? memo[k] : (memo[k] = fn()));
 const D = () => S.data; const ST = () => S.data.settings; const B = () => ST().booksStart;
@@ -2808,8 +2820,10 @@ function invoiceModel(v) {
   if (reimb.length) terms.unshift("Government fees and expenses listed under reimbursements were paid on your behalf as a pure agent and are recovered at actual cost; they are excluded from the taxable value (Rule 33, CGST Rules, 2017). Copies of the receipts are provided.");
   const portal = c.portal && c.portal.on ? portalLinkFor(c) : "";
   const auth = authFor("INV", [v.no, v.date, c.gstin || c.name || "", iv.grand.toFixed(2)], ["Invoice " + v.no + " dated " + dmy(v.date), "Billed to " + (c.name || "") + (c.gstin ? " (" + c.gstin + ")" : ""), "Invoice value INR " + amt(iv.grand), portal ? "View: " + portal : ""]);
-  return {s, f, c, iv, v, title, taxRows, clientAddr, bank, meta, firmIds, terms, auth, reimb, words: inWords(iv.grand), items: (f.items || []).filter(x => x.desc || +x.amount)};
+  const upi = s.upi && iv.grand > 0 ? {url: upiUrl(iv.grand, "Invoice " + v.no), amt: iv.grand} : null; if (upi) upi.img = qrPNG(upi.url); if (upi && !upi.img) upi.img = null;
+  return {s, f, c, iv, v, title, taxRows, clientAddr, bank, meta, firmIds, terms, auth, reimb, upi, words: inWords(iv.grand), items: (f.items || []).filter(x => x.desc || +x.amount)};
 }
+const upiUrl = (amount, note) => { const s = ST(); return "upi://pay?pa=" + encodeURIComponent(s.upi.trim()) + "&pn=" + encodeURIComponent((s.bankAcName || s.firm).slice(0, 40)) + "&am=" + r2(amount).toFixed(2) + "&cu=INR&tn=" + encodeURIComponent(String(note).slice(0, 50)); };
 const portalLinkFor = c => (typeof VIEWER_URL !== "undefined" ? VIEWER_URL : "") + "#c" + c.portal.token;
 const fileBase = m => ("Invoice " + (m.v.no || "") + " " + (m.c.name || "")).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
 
@@ -2834,6 +2848,7 @@ const INV_CSS = `.inv{--n:${NAVY};--g:${GOLD};font-family:Calibri,Carlito,"Segoe
 .inv .auth{text-align:center;font-size:6.5pt;color:${MUTED};line-height:1.3}.inv .auth img{width:26mm;height:26mm;display:block;margin:0 auto 1mm}.inv .auth b{display:block;color:var(--n);font-size:7.5pt;letter-spacing:.04em}
 .inv .sign{text-align:right;font-size:9pt;position:relative}.inv .sign .sp{height:18mm;position:relative}.inv .sign .seal{position:absolute;right:30mm;top:-2mm;width:24mm;height:24mm;opacity:.95}
 .inv .sign .sig{position:absolute;right:0;bottom:0;max-width:44mm;max-height:15mm}.inv .sign .as{font-size:7.5pt;color:${MUTED};letter-spacing:.08em;text-transform:uppercase;margin-top:1mm}
+.inv .upi{display:flex;gap:3mm;align-items:center;margin-top:2.5mm;padding-top:2.5mm;border-top:.3mm dashed ${LINE};font-size:8.5pt}.inv .upi img{width:20mm;height:20mm}.inv .upi b{display:block;color:var(--n);font-size:9pt}
 .inv .terms{margin-top:5mm;font-size:8.5pt;color:${MUTED}}.inv .terms ol{margin:1mm 0 0;padding-left:5mm}
 .inv .bottom{position:absolute;left:14mm;right:14mm;bottom:8mm;border-top:.3mm solid ${LINE};padding-top:2mm;text-align:center;font-size:7.5pt;color:${MUTED}}`;
 function authHTML(a) { return `<div class="auth">${a.qr ? `<img src="${a.qr}" alt="Verification QR code">` : ""}<b>${esc(a.code)}</b>Verification code<br>Generated ${esc(fmtTime(a.at))}</div>`; }
@@ -2856,7 +2871,7 @@ function invoiceHTML(m) {
   <div class="sum"><div class="words"><b>Amount in words</b>${e(m.words)}${m.f.notes ? `<div style="margin-top:3mm"><b>Notes</b><span style="white-space:pre-line">${e(m.f.notes)}</span></div>` : ""}</div>
     <table><tbody><tr><td>Taxable value</td><td class="r num">${amt(m.iv.taxable)}</td></tr>${m.taxRows.map(r => `<tr><td>${e(r[0])}</td><td class="r num">${amt(r[1])}</td></tr>`).join("")}
     <tr class="grand"><td>Total</td><td class="r num">₹${amt(m.iv.grand)}</td></tr></tbody></table></div>
-  <div class="foot"><div class="bank">${m.bank.length ? `<div class="lbl">Bank details for payment</div><dl class="kv" style="margin:0">${m.bank.map(r => `<dt>${r[0]}</dt><dd>${e(r[1])}</dd>`).join("")}</dl>` : `<div class="muted" style="font-size:8.5pt">Add bank details in Settings to show them here.</div>`}</div>
+  <div class="foot"><div class="bank">${m.bank.length ? `<div class="lbl">Bank details for payment</div><dl class="kv" style="margin:0">${m.bank.map(r => `<dt>${r[0]}</dt><dd>${e(r[1])}</dd>`).join("")}</dl>` : `<div class="muted" style="font-size:8.5pt">Add bank details in Settings to show them here.</div>`}${m.upi && m.upi.img ? `<div class="upi"><img src="${m.upi.img}" alt="UPI QR code"><div><b>Scan to pay ₹${amt(m.upi.amt)}</b>Any UPI app · ${e(s.upi)}</div></div>` : ""}</div>
     ${authHTML(m.auth)}${signHTML(s, m.auth)}</div>
   ${m.terms.length ? `<div class="terms"><div class="lbl">Terms</div><ol>${m.terms.map(t => `<li>${e(t)}</li>`).join("")}</ol></div>` : ""}
   <div class="bottom">This is a computer-generated invoice authenticated by verification code ${e(m.auth.code)}.${s.email || s.phone ? " · " + [s.email, s.phone].filter(Boolean).map(e).join(" · ") : ""}</div></div>`;
@@ -2918,9 +2933,11 @@ function drawInvoice(R, m) {
   for (const ln of wrap(m.words, 92, 9)) { R.text(ln, L, wy, {size: 9}); wy += 4.3; }
   if (m.f.notes) { wy += 1.5; R.text("NOTES", L, wy, {size: 7, bold: true, color: GOLD}); wy += 4.3; for (const ln of wrap(m.f.notes, 92, 8.5)) { R.text(ln, L, wy, {size: 8.5, color: MUTED}); wy += 4; } }
   y = Math.max(tyy + 9, wy + 4);
-  if (y + 46 > 280) { R.newPage(); y = 16; }
-  const bh = Math.max(m.bank.length, 1) * 4.3 + 9; R.rect(L, y, 78, bh, {stroke: LINE, w: 0.3});
+  const upiH = m.upi && m.upi.img ? 25 : 0; const bh = Math.max(m.bank.length, 1) * 4.3 + 9 + upiH;
+  if (y + Math.max(46, bh + 4) > 280) { R.newPage(); y = 16; }
+  R.rect(L, y, 78, bh, {stroke: LINE, w: 0.3});
   let by = y + 5; if (m.bank.length) { R.text("BANK DETAILS FOR PAYMENT", L + 3, by, {size: 7, bold: true, color: GOLD}); by += 4.6; for (const [k, v] of m.bank) { R.text(k, L + 3, by, {size: 8.5, color: MUTED}); R.text(String(v), L + 21, by, {size: 8.5, bold: true}); by += 4.3; } }
+  if (upiH) { const qy = y + bh - upiH + 1; R.line(L + 3, qy - 1, L + 75, qy - 1, {color: LINE, w: 0.2}); R.image(m.upi.img, L + 3, qy + 1, 21, 21); R.text("Scan to pay Rs. " + amt(m.upi.amt), L + 27, qy + 9, {size: 9, bold: true, color: NAVY}); R.text("with any UPI app", L + 27, qy + 13.5, {size: 8, color: MUTED}); R.text(s.upi, L + 27, qy + 17.5, {size: 8, color: MUTED}); }
   const endY = drawAuthSign(R, s, m.auth, y, RX, true, L + 84);
   y = Math.max(y + bh, endY) + 6;
   if (m.terms.length) { if (y + 6 + m.terms.length * 4 > 283) { R.newPage(); y = 16; } R.text("TERMS", L, y, {size: 7, bold: true, color: GOLD}); y += 4.3;
@@ -2956,7 +2973,7 @@ async function canvasDoc(draw, imgs, W = 210, H = 297) {
   if (pages > 1) for (let i = 1; i < pages; i++) { ctx.fillStyle = "#d9dce2"; ctx.fillRect(0, i * H * k - 3, cv.width, 6); }
   return await new Promise(res => cv.toBlob(res, "image/png"));
 }
-const invoicePNG = m => canvasDoc(R => drawInvoice(R, m), [m.auth.qr, m.auth.seal, m.auth.sign]);
+const invoicePNG = m => canvasDoc(R => drawInvoice(R, m), [m.auth.qr, m.auth.seal, m.auth.sign, m.upi && m.upi.img]);
 
 // ---------- DOCX (hand-built WordprocessingML in a stored zip, with images) ----------
 function crc32(u8) { let crc = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) { let c = (crc ^ u8[i]) & 0xFF; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; crc = (crc >>> 8) ^ c; } return (crc ^ 0xFFFFFFFF) >>> 0; }
@@ -3004,7 +3021,8 @@ function invoiceDOCX(m) {
   body += table([cell(words, 6006) + cell(tot, 4200)], [6006, 4200]);
   body += p("", {after: 160});
   const a = m.auth;
-  const bankC = m.bank.length ? p(r("BANK DETAILS FOR PAYMENT", {b: 1, size: 7.5, color: Gd})) + m.bank.map(([k, v]) => p(r(k + ":  ", {size: 9, color: Mu}) + r(String(v), {b: 1, size: 9}))).join("") : p(r("Bank details not added", {size: 9, color: Mu}));
+  const bankC = (m.bank.length ? p(r("BANK DETAILS FOR PAYMENT", {b: 1, size: 7.5, color: Gd})) + m.bank.map(([k, v]) => p(r(k + ":  ", {size: 9, color: Mu}) + r(String(v), {b: 1, size: 9}))).join("") : p(r("Bank details not added", {size: 9, color: Mu})))
+    + (m.upi && m.upi.img ? p(img(m.upi.img, 20, 20), {before: 80}) + p(r("Scan to pay ₹" + amt(m.upi.amt) + " with any UPI app", {b: 1, size: 8.5, color: N})) : "");
   const authC = (a.qr ? p(img(a.qr, 24, 24), {align: "center"}) : "") + p(r(a.code, {b: 1, size: 8, color: N}), {align: "center"}) + p(r("Verification code", {size: 6.5, color: Mu}), {align: "center"});
   const signC = p(r("For ", {size: 9.5}) + r(s.firm, {b: 1, size: 9.5}), {align: "right"}) + p(r(s.tagline || "", {size: 8.5, color: Mu}), {align: "right"})
     + p((a.seal ? img(a.seal, 21, 21) : "") + (a.sign ? img(a.sign, 36, 12) : ""), {align: "right"}) + (a.seal || a.sign ? "" : p("", {after: 700}))
@@ -3187,11 +3205,11 @@ function specPortalStatement(pk) { const rows = pk.statement.map((x, i) => ({c: 
     tables: [{cols: [C("Date", 22), C("Particulars", 90), C("Debit (₹)", 26, "r"), C("Credit (₹)", 26, "r"), C("Balance (₹)", 28, "r"), C("", 8, "c")], rows}], summary: [["Amount payable", money(Math.max(0, pk.bal)), 1]], notes: ["E. & O.E. Please report any discrepancy within 15 days."], sign: true}; }
 
 // ================= UI =================
-const TABS = [["dash", "Dashboard"], ["day", "Day Book"], ["inv", "Invoices"], ["clients", "Clients"], ["ledgers", "Ledgers"], ["reports", "Reports"], ["msgs", "Messages"], ["settings", "Settings"]];
+const TABS = [["dash", "Dashboard"], ["day", "Day Book"], ["inv", "Invoices"], ["clients", "Clients"], ["comp", "Compliance"], ["letters", "Letters"], ["ledgers", "Ledgers"], ["reports", "Reports"], ["msgs", "Messages"], ["settings", "Settings"]];
 if (!TABS.some(t => t[0] === S.tab)) S.tab = "dash";
 let raf = 0; function dirty() { memo = {}; if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
-function upsert(coll, rec) { rec.updatedAt = nowIso(); const a = D()[coll]; const i = a.findIndex(x => x.id === rec.id); if (i >= 0) a[i] = rec; else a.push(rec); }
-function removeRec(coll, id) { D()[coll] = D()[coll].filter(x => x.id !== id); D().tomb[id] = nowIso(); }
+function upsert(coll, rec) { rec.updatedAt = nowIso(); const a = D()[coll]; const i = a.findIndex(x => x.id === rec.id); if (i >= 0) a[i] = rec; else a.push(rec); if (typeof logAct === "function") logAct(coll, rec, i >= 0 ? "Edited" : "Added"); }
+function removeRec(coll, id) { const old = D()[coll].find(x => x.id === id); if (old && typeof logAct === "function") logAct(coll, old, "Deleted"); D()[coll] = D()[coll].filter(x => x.id !== id); D().tomb[id] = nowIso(); }
 function commit() { memo = {}; persist(); dirty(); }
 const ledUsed = id => D().vouchers.some(v => (v.lines || []).some(x => x.l === id));
 
@@ -3231,7 +3249,7 @@ function lockView() {
 }
 function shell() {
   const cf = fyOf(todayStr()); const fys = []; for (let y = fyOf(B()); y <= cf; y++) fys.push(y); if (!fys.includes(S.fy)) S.fy = cf;
-  const view = {dash: vDash, day: vDay, inv: vInv, clients: vClients, ledgers: vLedgers, reports: vReports, msgs: vMsgs, settings: vSettings}[S.tab] || vDash;
+  const view = {dash: vDash, day: vDay, inv: vInv, clients: vClients, comp: vComp, letters: vLetters, ledgers: vLedgers, reports: vReports, msgs: vMsgs, settings: vSettings}[S.tab] || vDash;
   return `<header class="brandbar">
     <div class="brand"><div class="mono">PNA</div><div style="min-width:0"><div class="firm">${esc(ST().firm)}</div><div class="tag">${esc(ST().tagline || "")}${ST().addr1 ? " · " + esc([ST().addr1, ST().addr2].filter(Boolean).map(a => a.split(",")[0]).join(" | ")) : ""}</div></div></div>
     <div class="actions"><span class="small muted" id="save-state">${esc(S.saveState)}</span>
@@ -3265,13 +3283,14 @@ function vDash() {
     <div class="panel stat"><div class="label">Due from clients</div><div class="value">${money(duesTotal())}</div><div class="foot">${cd.length} client${cd.length === 1 ? "" : "s"} · ${money(over90)} over 90 days${payables ? " · you owe " + money(payables) : ""}</div></div>
   </div>
   <div class="quick">${["receipt", "payment", "sales", "contra", "journal"].map(t => `<button class="qbtn" data-new="${t}"><b>${t === "sales" ? "New invoice" : VTYPE[t]}</b><kbd>${VKEY[t]}</kbd></button>`).join("")}<button class="qbtn" data-new="client"><b>Add client</b></button></div>
+  ${backupNotice()}
+  <div class="grid cols-2">${compDashPanel()}
+    <div class="panel"><div class="panel-head"><h2>Money in &amp; out</h2><div class="legend"><span><i style="background:var(--in)"></i>In</span><span><i style="background:var(--out)"></i>Out</span></div></div>${chart(st)}</div></div>
   <div class="grid cols-2">
-    <div class="panel"><div class="panel-head"><h2>Money in &amp; out</h2><div class="legend"><span><i style="background:var(--in)"></i>In</span><span><i style="background:var(--out)"></i>Out</span></div></div>${chart(st)}</div>
     <div class="panel"><div class="panel-head"><h2>Largest client dues</h2><button class="btn ghost sm" data-tab="clients">All clients →</button></div>
       ${cd.length ? `<div class="tablewrap"><table><tbody>${cd.slice(0, 6).map(s => `<tr class="click" data-client="${s.id}"><td>${esc(lname(s.id))}</td><td class="r num">${money(s.bal)}</td><td class="r">${ageChip(s.oldest)}</td></tr>`).join("")}</tbody></table></div>`
         : `<div class="empty"><strong>Nothing due from clients</strong>Raise an invoice to start tracking dues.</div>`}</div>
-  </div>
-  <div class="panel"><div class="panel-head"><h2>Latest vouchers</h2><button class="btn ghost sm" data-tab="day">Day Book →</button></div>${recent.length ? vTable(recent) : `<div class="empty"><strong>No vouchers in FY ${fyLabel(S.fy)} yet</strong>Use “+ New” or the keys F4–F8.</div>`}</div></div>`;
+  <div class="panel"><div class="panel-head"><h2>Latest vouchers</h2><button class="btn ghost sm" data-tab="day">Day Book →</button></div>${recent.length ? vTable(recent.slice(0, 6)) : `<div class="empty"><strong>No vouchers in FY ${fyLabel(S.fy)} yet</strong>Use “+ New” or the keys F4–F8.</div>`}</div></div></div>`;
 }
 function chart(st) {
   const ms = Object.keys(st.months); const W = 640, H = 240, L = 56, R = 8, T = 10, Bm = 28;
@@ -3348,12 +3367,12 @@ function clientCard(id) {
       <div><div class="stat"><div class="label">${s.bal < 0 ? "Advance received" : "Due now"}</div><div class="value ${s.bal > 0 ? "amt-out" : ""}">${money(Math.abs(s.bal))}</div></div>
       <div class="filters" style="margin-top:8px">${["0–30", "31–60", "61–90", "90+"].map((t, i) => s.age[i] ? `<span class="pill ${i === 3 ? "out" : i === 2 ? "warn" : ""}">${t} days: ${money(s.age[i])}</span>` : "").join("")}</div></div></div>
     ${invs.length ? `<h3 style="margin:16px 0 6px">Recent invoices</h3><div class="tablewrap"><table><tbody>${invs.map(v => { const st = invStatus(v); return `<tr class="click" data-cinv="${v.id}"><td class="num">${dmy(v.date)}</td><td class="num">${esc(v.no)}</td><td class="r num">${money(calcInvoice(v.f).grand)}</td><td><span class="pill ${st.cls}">${st.label}</span></td></tr>`; }).join("")}</tbody></table></div>` : ""}
-    <div class="filters" style="margin-top:14px"><button class="btn sm" data-cc="docs">${c.folder ? "Drive folder" : "Create Drive folder"} · ${docsOf(id).length} docs</button><button class="btn sm" data-cc="portal">Client portal${c.portal && c.portal.on ? " · on" : ""}</button>${c.folder ? `<a class="btn sm" href="${esc(c.folder)}" target="_blank" rel="noopener">Open folder ↗</a>` : ""}</div>
+    <div class="filters" style="margin-top:14px"><button class="btn sm" data-cc="docs">${c.folder ? "Drive folder" : "Create Drive folder"} · ${docsOf(id).length} docs</button><button class="btn sm" data-cc="portal">Client portal${c.portal && c.portal.on ? " · on" : ""}</button><button class="btn sm" data-cc="comp">Compliance${(c.comp || []).length ? " · " + D().comp.filter(t => t.client === id && isOpen(t) && t.due < todayStr()).length + " overdue" : ""}</button><button class="btn sm" data-cc="letter">Write a letter</button>${c.folder ? `<a class="btn sm" href="${esc(c.folder)}" target="_blank" rel="noopener">Open folder ↗</a>` : ""}</div>
     <div class="modal-foot"><div class="actions"><button class="btn" data-cc="edit">Edit details</button><button class="btn" data-cc="ledger">Statement</button><button class="btn" data-cc="stpdf">Statement PDF</button></div>
       <div class="right"><button class="btn" data-cc="wa">WhatsApp</button><button class="btn" data-cc="mail">Email</button><button class="btn" data-cc="rcpt">Record receipt</button><button class="btn primary" data-cc="inv">New invoice</button></div></div>`, "wide");
   $("#modal-root .modal").addEventListener("click", e => { const b = e.target.closest("[data-cc],[data-cinv]"); if (!b) return;
     if (b.dataset.cinv) return invoiceView(vById(b.dataset.cinv));
-    const a = b.dataset.cc; if (a === "stpdf") { b.disabled = true; exportSpec(specLedger(id, S.fy), "pdf").finally(() => b.disabled = false); return; } if (a === "edit") ledgerForm(c); if (a === "docs") clientDocs(id); if (a === "portal") clientPortal(id); if (a === "ledger") { closeModal(); S.sel = id; S.tab = "ledgers"; dirty(); }
+    const a = b.dataset.cc; if (a === "stpdf") { b.disabled = true; exportSpec(specLedger(id, S.fy), "pdf").finally(() => b.disabled = false); return; } if (a === "edit") ledgerForm(c); if (a === "docs") clientDocs(id); if (a === "portal") clientPortal(id); if (a === "comp") return (c.comp || []).length ? compClient(id) : compSetup(id); if (a === "letter") { closeModal(); ltStart(S.lt.tpl || "eng_audit", id); S.lt.tpl = null; S.tab = "letters"; dirty(); return; } if (a === "ledger") { closeModal(); S.sel = id; S.tab = "ledgers"; dirty(); }
     if (a === "inv") invoiceForm(null, {party: id}); if (a === "rcpt") voucherForm("receipt", null, {party: id, amount: s.bal > 0 ? s.bal : ""});
     if (a === "wa") compose("whatsapp", {client: id, kind: s.bal > 0 ? "reminder" : "blank"}); if (a === "mail") compose("email", {client: id, kind: s.bal > 0 ? "reminder" : "blank"}); });
 }
@@ -3386,7 +3405,7 @@ function vLedgers() {
 // ----- Reports
 const REPS = [["pl", "Profit & Loss"], ["bs", "Balance Sheet"], ["tb", "Trial Balance"], ["rp", "Receipts & Payments"], ["gst", "GST summary"], ["tds", "TDS receivable"], ["age", "Client ageing"]];
 function vReports() {
-  const body = {pl: rPL, bs: rBS, tb: rTB, rp: rRP, gst: rGST, tds: rTDS, age: rAge}[S.rep] || rPL;
+  const body = {pl: rPL, bs: rBS, tb: rTB, rp: rRP, gst: rGST, tds: rTDS, age: rAge, mis: () => specHTML(specMIS(S.fy)), compr: () => (ensureComp(S.fy), specHTML(specComp(S.fy)))}[S.rep] || rPL;
   return `<div class="stack"><div class="panel-head" style="margin:0"><div class="seg">${REPS.map(([k, l]) => `<button data-rep="${k}" aria-pressed="${S.rep === k}">${l}</button>`).join("")}</div>
     <div class="actions"><button class="btn" data-exp="rep:pdf">Download PDF</button><button class="btn" data-exp="rep:xlsx">Excel</button><button class="btn" data-act="xlsall">All reports (Excel)</button></div></div>${body()}</div>`;
 }
@@ -3461,8 +3480,8 @@ function vMsgs() {
       return `<tr><td><b>${esc(c.name)}</b><div class="meta">${esc([c.phone, c.email].filter(Boolean).join(" · ") || "No phone or email saved")}</div></td><td class="r num">${money(s.bal)}</td><td>${ageChip(s.oldest)}</td><td class="small muted">${last ? esc(fmtTime(last.at)) + " · " + esc(last.channel) : "—"}</td>
       <td class="r"><div class="actions" style="justify-content:flex-end"><button class="btn sm" data-msg="whatsapp" data-id="${s.id}">WhatsApp</button><button class="btn sm" data-msg="email" data-id="${s.id}">Email</button>${!ONLINE ? `<button class="btn sm" data-msg="sms" data-id="${s.id}">SMS</button>` : ""}</div></td></tr>`; }).join("")}</tbody></table></div>`
     : `<div class="empty"><strong>No pending dues</strong>Clients with an outstanding balance appear here with one-click WhatsApp and email reminders.</div>`;
-  if (S.msgTab === "tpl") { const t = ST().tpl; body = `<form id="tpl-form" class="stack"><p class="small muted" style="margin:0">Placeholders: {client} {invoice_no} {invoice_date} {amount} {service} {due_date} {due} {details} {today} {date} {tds_text} {bank} {link} {signatory} {firm}</p>
-    ${[["invoice", "Invoice message"], ["reminder", "Payment reminder"], ["receipt", "Payment received (thank you)"], ["portal", "Client portal invitation"]].map(([k, l]) => `<div class="field"><label class="lbl" for="tpl-${k}">${l}</label><textarea id="tpl-${k}" rows="8">${esc(t[k])}</textarea></div>`).join("")}
+  if (S.msgTab === "tpl") { const t = ST().tpl; body = `<form id="tpl-form" class="stack"><p class="small muted" style="margin:0">Placeholders: {client} {invoice_no} {invoice_date} {amount} {service} {due_date} {due} {details} {today} {date} {tds_text} {bank} {link} {list} {entity} {signatory} {firm}</p>
+    ${[["invoice", "Invoice message"], ["reminder", "Payment reminder"], ["receipt", "Payment received (thank you)"], ["portal", "Client portal invitation"], ["comp", "Compliance reminder"]].map(([k, l]) => `<div class="field"><label class="lbl" for="tpl-${k}">${l}</label><textarea id="tpl-${k}" rows="8">${esc(t[k])}</textarea></div>`).join("")}
     <div class="actions"><button class="btn primary" type="submit">Save templates</button><button class="btn" type="button" data-act="tplreset">Restore defaults</button></div></form>`; }
   if (S.msgTab === "log") { const ms = D().msgs.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 300);
     body = ms.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>When</th><th>Client</th><th>Channel</th><th>Message</th><th>Status</th></tr></thead><tbody>${ms.map(m => `<tr><td class="small num">${esc(fmtTime(m.at))}</td><td>${esc(lname(m.client))}</td><td>${esc(m.channel)}</td><td class="small">${esc(m.subject || m.kind)}</td><td><span class="pill ${m.status === "Sent" ? "in" : ""}">${esc(m.status)}</span></td></tr>`).join("")}</tbody></table></div>`
@@ -3517,6 +3536,7 @@ function vSettings() {
     <div class="panel"><div class="panel-head"><h2>${ONLINE ? "Sync with the MacBook" : "Sync with the online ledger"}</h2></div>
       <p class="small muted" style="margin-top:0">Entries made in either place are combined record by record; the newest change wins and nothing is duplicated.</p>
       <div class="actions"><button class="btn" data-act="syncout">${ONLINE ? "Download file for MacBook" : "Save file for online"}</button><button class="btn" data-act="syncin">${ONLINE ? "Merge file from MacBook" : "Merge file from online"}</button>${!ONLINE ? `<a class="btn" href="${VIEWER_URL}" target="_blank" rel="noopener">Open online ledger ↗</a>` : ""}</div></div>
+    ${safetyPanel()}
     <div class="panel"><div class="panel-head"><h2>Backup</h2></div><p class="small" style="margin-top:0">${esc(S.saveState || "")}</p>
       ${fsOK ? `<p class="small muted">${S.fileHandle ? "Also saving every change to <b>" + esc(S.fileName) + "</b>." : "Choose a file in your PNA Ledger folder and every change is saved there too."}</p><div class="actions" style="margin-bottom:10px"><button class="btn" data-act="linkfile">${S.fileHandle ? "Change data file" : "Save changes to a file"}</button></div>` : ""}
       <div class="actions"><button class="btn" data-act="backup">Download encrypted backup</button><button class="btn" data-act="restore">Restore from backup</button></div></div>
@@ -3536,20 +3556,27 @@ function bind() {
   on("f-month", "change", e => { S.f.month = e.target.value; dirty(); }); on("f-type", "change", e => { S.f.type = e.target.value; dirty(); });
   on("f-q", "input", e => { S.f.q = e.target.value; dirty(); }); on("l-q", "input", e => { S.lq = e.target.value; dirty(); });
   on("c-q", "input", e => { S.cq = e.target.value; dirty(); }); on("inv-q", "input", e => { S.invQ = e.target.value; dirty(); });
-  on("set-form", "submit", saveSettings); bindWeb(); on("pw-form", "submit", changePassword);
+  on("set-form", "submit", saveSettings); bindWeb();
+  const cf = S.cf; on("cf-cat", "change", e => { cf.cat = e.target.value; dirty(); }); on("cf-st", "change", e => { cf.st = e.target.value; dirty(); }); on("cf-staff", "change", e => { cf.staff = e.target.value; dirty(); });
+  on("cf-q", "input", e => { cf.q = e.target.value; dirty(); }); on("cf-month", "change", e => { cf.month = e.target.value; dirty(); });
+  if (S.tab === "comp" && $("main")) bindCompRows($("main")); if (S.tab === "letters") bindLetters(); if (S.tab === "settings") bindSafety(); on("pw-form", "submit", changePassword);
   on("dv-auto", "change", e => { ST().driveAuto = e.target.checked; ST().updatedAt = nowIso(); commit(); }); on("dv-subs", "change", e => { ST().driveSubsOn = e.target.checked; ST().updatedAt = nowIso(); commit(); });
   on("au-seal", "change", e => { ST().sealOn = e.target.checked; ST().updatedAt = nowIso(); commit(); }); on("au-qr", "change", e => { ST().qrOn = e.target.checked; ST().updatedAt = nowIso(); commit(); });
   on("au-sign-x", "click", () => { ST().signImg = ""; ST().updatedAt = nowIso(); commit(); toast("Signature removed"); });
   on("au-sign", "click", () => { const i = document.createElement("input"); i.type = "file"; i.accept = "image/png,image/jpeg"; i.onchange = async () => { const f = i.files[0]; if (!f) return; try { ST().signImg = await cleanSignature(f); ST().updatedAt = nowIso(); commit(); toast("Signature saved — it now prints on invoices and statements"); } catch { toast("Couldn't read that image."); } }; i.click(); });
-  on("tpl-form", "submit", e => { e.preventDefault(); const t = ST().tpl; ["invoice", "reminder", "receipt", "portal"].forEach(k => t[k] = $("#tpl-" + k).value); ST().updatedAt = nowIso(); commit(); toast("Templates saved"); });
+  on("tpl-form", "submit", e => { e.preventDefault(); const t = ST().tpl; ["invoice", "reminder", "receipt", "portal", "comp"].forEach(k => t[k] = $("#tpl-" + k).value); ST().updatedAt = nowIso(); commit(); toast("Templates saved"); });
 }
 document.addEventListener("click", e => {
   if (S.portalMode || (!S.data && !e.target.closest("[data-act=restore]"))) return;
   const menu = $("#newmenu"); if (menu && !menu.hidden && !e.target.closest(".menu-wrap")) menu.hidden = true;
-  const el = e.target.closest("[data-exp],[data-tab],[data-act],[data-new],[data-v],[data-inv],[data-client],[data-sel],[data-sel-go],[data-rep],[data-invst],[data-msgtab],[data-msg],[data-editgroup]");
+  const el = e.target.closest("[data-exp],[data-tab],[data-act],[data-new],[data-v],[data-inv],[data-client],[data-sel],[data-sel-go],[data-rep],[data-invst],[data-msgtab],[data-msg],[data-editgroup],[data-cview],[data-cgo],[data-lview],[data-lt],[data-lact],[data-lopen],[data-lpdf],[data-ldel]");
   if (!el || (el.closest("#modal-root") && !el.matches("[data-new],[data-msg]"))) return; const d = el.dataset;
   if (d.tab) { S.tab = d.tab; ls.set("tab", S.tab); dirty(); window.scrollTo(0, 0); return; }
-  if (d.exp) { const [k, fmt] = d.exp.split(":"); const spec = k === "rep" ? REPORT_SPECS[S.rep]() : k === "led" ? specLedger(d.id, S.fy) : k === "day" ? specDay(S.fy, S.f.month) : k === "invreg" ? specInvoices(S.fy) : specClients();
+  if (d.cview) { S.cf.view = d.cview; dirty(); return; } if (d.cgo) { const t = D().comp.find(x => x.id === d.cgo); return t ? compClient(t.client) : null; }
+  if (d.lview) { S.lt.view = d.lview; dirty(); return; } if (d.lt) { ltStart(d.lt); dirty(); window.scrollTo(0, 0); return; } if (d.lact) return letterAction(d.lact, el);
+  if (d.lopen) return letterOpen(d.lopen); if (d.lpdf) { const l = D().letters.find(x => x.id === d.lpdf); if (l) { const st = {tpl: l.tpl, client: l.client, date: l.date, f: l.f || {}, sub: l.subRaw != null ? l.subRaw : l.sub, body: l.body, to: l.toRaw != null ? l.toRaw : l.to, ref: l.ref}; const m = letterModel(st); letterPDF(m).then(b => saveFile(letterFileBase(m) + ".pdf", b)); } return; }
+  if (d.ldel) { if (!el.dataset.c) { el.dataset.c = 1; el.textContent = "Confirm"; return; } removeRec("letters", d.ldel); commit(); return; }
+  if (d.exp) { const [k, fmt] = d.exp.split(":"); const spec = k === "comp" ? specComp(S.fy) : k === "mis" ? specMIS(S.fy) : k === "rep" ? REPORT_SPECS[S.rep]() : k === "led" ? specLedger(d.id, S.fy) : k === "day" ? specDay(S.fy, S.f.month) : k === "invreg" ? specInvoices(S.fy) : specClients();
     const old = el.textContent; el.disabled = true; el.textContent = "Preparing…";
     if (fmt === "drive") { reportPDF(spec).then(b => saveCopyToDrive(d.id, b, spec.fileName.replace(/[\\/:*?"<>|]+/g, "-") + ".pdf", "08 Invoices & Statements")).catch(() => toast("Couldn't create the PDF.")).finally(() => { el.disabled = false; el.textContent = old; }); return; }
     exportSpec(spec, fmt).finally(() => { el.disabled = false; el.textContent = old; }); return; }
@@ -3563,7 +3590,9 @@ document.addEventListener("click", e => {
   if (a === "newmenu") { if (menu) menu.hidden = !menu.hidden; return; }
   if (a === "lock") return lock(); if (a === "editled") return ledgerForm(led(d.id)); if (a === "newgroup") return groupForm(null);
   if (a === "xlsall") return exportAll(); if (a === "backup") return doBackup(); if (a === "restore") return restoreFlow(); if (a === "linkfile") return linkFile();
-  if (a === "bulkdrive") return bulkCreateFolders(el);
+  if (a === "bulkdrive") return bulkCreateFolders(el); if (a === "comptask") return compEdit(null);
+  if (a === "savestaff") { ST().staff = ($("#cs-staff").value || "").split(",").map(x => x.trim()).filter(Boolean); ST().updatedAt = nowIso(); commit(); toast("Team saved"); return; }
+  if (a === "drvbackup") return driveBackupNow(el); if (a === "logxls") return exportLog();
   if (a === "drvcheck") return driveCheckFlow(el); if (a === "drvswitch") return driveSwitchFlow(); if (a === "drvroot") return driveRootFlow(); if (a === "drvsubs") return driveSubsFlow();
   if (a === "webguide") return webGuide(); if (a === "webzip") return downloadSite(el);
   if (a === "webpub") { const old = el.textContent; el.disabled = true; el.textContent = "Publishing…"; publishSite().then(r => r && !r.queued && toast(r.changed ? "Published " + r.clients + " client portal" + (r.clients === 1 ? "" : "s") + " · live in about a minute" : "Portal website is already up to date")).catch(e => toast(webErr(e))).finally(() => { el.disabled = false; el.textContent = old; }); return; }
@@ -3588,7 +3617,7 @@ function saveSettings(e) { e.preventDefault(); const s = ST(); const g = id => (
     invPrefix: g("s-prefix"), invDigits: Math.max(1, Math.min(6, +g("s-digits") || 3)), dueDays: Math.max(0, +g("s-due") || 0), gstRate: +g("s-rate"), defaultSac: g("s-sac"), roundOff: g("s-round") === "1", invTerms: g("s-terms"),
     booksStart: g("s-start"), lockMins: +g("s-lock"), updatedAt: nowIso()});
   if (s.gstin.length === 15 && !s.pan) s.pan = s.gstin.slice(2, 12);
-  commit(); toast("Settings saved"); }
+  logEvent("Firm settings changed"); commit(); toast("Settings saved"); }
 
 // ================= modals =================
 function openModal(html, size) { const root = $("#modal-root");
@@ -3866,7 +3895,8 @@ function printInvoice(m) { let pr = $("#print-root"); if (!pr) { pr = document.c
   pr.innerHTML = `<style>${INV_CSS}@page{size:A4;margin:0}</style>${invoiceHTML(m)}`; document.body.classList.add("printing"); setTimeout(() => { window.print(); document.body.classList.remove("printing"); pr.innerHTML = ""; }, 50); }
 
 // ----- compose: WhatsApp / email / SMS
-function msgVars(ctx) { const s = ST(), c = led(ctx.client) || {}, cd = clientDues().get(ctx.client) || {bal: 0, debits: []}; const v = ctx.v;
+function msgVars(ctx) { return Object.assign(msgVars0(ctx), ctx.vars || {}); }
+function msgVars0(ctx) { const s = ST(), c = led(ctx.client) || {}, cd = clientDues().get(ctx.client) || {bal: 0, debits: []}; const v = ctx.v;
   const vars = {client: c.contact || c.name, firm: s.firm, signatory: s.signatory, today: dLong(todayStr()), due: money(Math.max(0, cd.bal)), bank: bankText() || "(add bank details in Settings)",
     details: cd.debits.filter(d => d.due > 0).map(d => `• ${d.kind === "invoice" ? "Invoice " + d.v.no : d.kind === "opening" ? "Previous balance" : "Amount paid on your behalf"} dated ${dmy(d.date)}: ${money(d.due)}`).join("\n")};
   if (v && v.type === "sales") { const iv = calcInvoice(v.f); Object.assign(vars, {invoice_no: v.no, invoice_date: dLong(v.date), amount: money(iv.grand), service: (v.f.items || []).map(x => x.desc).join(", "), due_date: v.f.dueDate ? dLong(v.f.dueDate) : "the due date"}); }
@@ -3877,8 +3907,8 @@ function logMsg(ctx, channel, status, subject) { upsert("msgs", {id: uid(), at: 
 function compose(channel, ctx) {
   const c = led(ctx.client) || {}; const s = ST(); const vars = msgVars(ctx); const tpl = ctx.kind === "blank" ? "Dear {client},\n\n\n\nWarm regards,\n{signatory}\n{firm}" : s.tpl[ctx.kind] || DEFAULT_TPL[ctx.kind] || "";
   const tplX = ctx.kind === "portalpw" ? "Dear {client},\n\nYour password for the {firm} client portal is: {password}\n\nPlease keep it confidential.\n\nRegards,\n{signatory}" : tpl;
-  const text = fillTpl(tplX, vars); const subj = ctx.kind === "portal" ? `Your client portal – ${s.firm}` : ctx.kind === "invoice" ? `Invoice ${vars.invoice_no} from ${s.firm}` : ctx.kind === "reminder" ? `Payment reminder – ${s.firm}` : ctx.kind === "receipt" ? `Payment received – thank you` : s.firm;
-  const attach = ctx.kind === "invoice" && ctx.v;
+  const text = fillTpl(ctx.text != null ? ctx.text : tplX, vars); const subj = ctx.subject ? ctx.subject : ctx.kind === "comp" ? `Upcoming compliance due dates – ${s.firm}` : ctx.kind === "portal" ? `Your client portal – ${s.firm}` : ctx.kind === "invoice" ? `Invoice ${vars.invoice_no} from ${s.firm}` : ctx.kind === "reminder" ? `Payment reminder – ${s.firm}` : ctx.kind === "receipt" ? `Payment received – thank you` : s.firm;
+  const attach = (ctx.kind === "invoice" && ctx.v) || ctx.file; const makeAtt = () => ctx.file ? ctx.file.make() : invoiceFile(ctx.v, "pdf");
   if (channel === "whatsapp" || channel === "sms") {
     const num = waNumber(c.whatsapp || c.phone);
     const root = openModal(`<div class="modal-head"><h2>${channel === "sms" ? "SMS" : "WhatsApp"} · ${esc(c.name)}</h2><button class="x" data-close aria-label="Close">×</button></div>
@@ -3889,25 +3919,25 @@ function compose(channel, ctx) {
     const upd = () => { const n = waNumber($("#m-num").value), t = $("#m-text").value; $("#m-go").href = channel === "sms" ? `sms:${n ? "+" + n : ""}?&body=${encodeURIComponent(t)}` : `https://wa.me/${n}?text=${encodeURIComponent(t)}`; };
     $("#m-num").addEventListener("input", upd); $("#m-text").addEventListener("input", upd); upd();
     $("#m-go").addEventListener("click", () => { if (!waNumber($("#m-num").value)) { toast("Enter the client's mobile number."); } logMsg(ctx, channel === "sms" ? "SMS" : "WhatsApp", "Opened"); if ($("#m-num").value && !c.phone && !c.whatsapp) { c.phone = $("#m-num").value.trim(); upsert("ledgers", c); commit(); } });
-    $("#m-copy").addEventListener("click", () => copyText($("#m-text").value)); const pdf = $("#m-pdf"); if (pdf) pdf.addEventListener("click", async () => { const fl = await invoiceFile(ctx.v, "pdf"); await saveFile(fl.name, fl.data); });
+    $("#m-copy").addEventListener("click", () => copyText($("#m-text").value)); const pdf = $("#m-pdf"); if (pdf) pdf.addEventListener("click", async () => { const fl = await makeAtt(); await saveFile(fl.name, fl.data); });
     return; }
   const root = openModal(`<div class="modal-head"><h2>Email · ${esc(c.name)}</h2><button class="x" data-close aria-label="Close">×</button></div>
     <div class="formgrid"><div class="field"><label class="lbl" for="m-to">To</label><input id="m-to" type="email" value="${esc(c.email || "")}" placeholder="client@example.com"></div><div class="field"><label class="lbl" for="m-cc">Cc</label><input id="m-cc" value="${esc(s.email || "")}"></div>
     <div class="field span2"><label class="lbl" for="m-sub">Subject</label><input id="m-sub" value="${esc(subj)}"></div><div class="field span2"><label class="lbl" for="m-text">Message</label><textarea id="m-text" rows="12">${esc(text)}</textarea></div>
-    ${attach ? `<label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-att" style="width:auto" checked> Attach invoice ${esc(ctx.v.no)} as PDF</label>` : ""}
-    ${attach && ONLINE && (ctx.v.f.reimb || []).some(x => x.receipt && x.receipt.id) ? `<label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-rc" style="width:auto" checked> Attach government fee receipts from Drive (${(ctx.v.f.reimb || []).filter(x => x.receipt && x.receipt.id).length})</label>` : ""}</div><div class="err" id="m-err"></div>
+    ${attach ? `<label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-att" style="width:auto" checked> ${ctx.file ? esc(ctx.file.label) : "Attach invoice " + esc(ctx.v.no) + " as PDF"}</label>` : ""}
+    ${attach && ctx.v && ONLINE && (ctx.v.f.reimb || []).some(x => x.receipt && x.receipt.id) ? `<label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-rc" style="width:auto" checked> Attach government fee receipts from Drive (${(ctx.v.f.reimb || []).filter(x => x.receipt && x.receipt.id).length})</label>` : ""}</div><div class="err" id="m-err"></div>
     <div class="modal-foot"><button class="btn" id="m-copy">Copy text</button><div class="right">${ONLINE ? `<button class="btn" id="m-draft">Save as Gmail draft</button><button class="btn primary" id="m-send">Send via Gmail</button>` : `<a class="btn primary" id="m-mailto" href="#">Open in Mail app</a>`}</div></div>`);
   const vals = () => ({to: $("#m-to").value.split(/[,;\s]+/).filter(Boolean), cc: $("#m-cc").value.split(/[,;\s]+/).filter(Boolean), subject: $("#m-sub").value, body: $("#m-text").value, att: attach && $("#m-att") && $("#m-att").checked});
   $("#m-copy").addEventListener("click", () => copyText($("#m-text").value));
   if (!ONLINE) { const upd = () => { const x = vals(); $("#m-mailto").href = `mailto:${x.to.join(",")}?${x.cc.length ? "cc=" + encodeURIComponent(x.cc.join(",")) + "&" : ""}subject=${encodeURIComponent(x.subject)}&body=${encodeURIComponent(x.body)}`; };
     root.addEventListener("input", upd); upd();
-    $("#m-mailto").addEventListener("click", async () => { const x = vals(); if (x.att) { const fl = await invoiceFile(ctx.v, "pdf"); await saveFile(fl.name, fl.data); toast("PDF saved to Downloads — attach it in the email."); } logMsg(ctx, "Email", "Opened in Mail", x.subject); if (x.to[0] && !c.email) { c.email = x.to[0]; upsert("ledgers", c); commit(); } });
+    $("#m-mailto").addEventListener("click", async () => { const x = vals(); if (x.att) { const fl = await makeAtt(); await saveFile(fl.name, fl.data); toast("PDF saved to Downloads — attach it in the email."); } logMsg(ctx, "Email", "Opened in Mail", x.subject); if (x.to[0] && !c.email) { c.email = x.to[0]; upsert("ledgers", c); commit(); } });
     return; }
   const go = async (tool, btn) => { const x = vals(); const err = $("#m-err"); err.textContent = ""; if (!x.to.length) return err.textContent = "Enter the client's email address.";
     if (!S.online.mcp) return err.textContent = "Gmail isn't available in this view. Open the ledger in Claude with the Gmail connector added.";
     btn.disabled = true; const old = btn.textContent; btn.textContent = tool === "send_message" ? "Sending…" : "Saving…";
     try { const input = {to: x.to, subject: x.subject, body: x.body}; if (x.cc.length) input.cc = x.cc;
-      if (x.att) { const fl = await invoiceFile(ctx.v, "pdf"); input.attachments = [{content: b64(new Uint8Array(await fl.data.arrayBuffer())), filename: fl.name, mimeType: "application/pdf"}]; }
+      if (x.att) { const fl = await makeAtt(); input.attachments = [{content: b64(new Uint8Array(await fl.data.arrayBuffer())), filename: fl.name, mimeType: "application/pdf"}]; }
       if ($("#m-rc") && $("#m-rc").checked) { let size = (input.attachments || []).reduce((a, t) => a + t.content.length, 0); const skipped = [];
         for (const r of (ctx.v.f.reimb || []).filter(z => z.receipt && z.receipt.id)) { try { const d = await driveDownload(r.receipt.id); if (size + d.b64.length > 900000) { skipped.push(r); continue; } size += d.b64.length; (input.attachments = input.attachments || []).push({content: d.b64, filename: r.receipt.name || d.title, mimeType: d.mime}); } catch (e2) { skipped.push(r); } }
         if (skipped.length) input.body += "\n\nGovernment fee receipts:\n" + skipped.map(r => "• " + r.desc + (r.ref ? " (" + r.ref + ")" : "") + ": " + r.receipt.url).join("\n"); }
@@ -3932,6 +3962,7 @@ function ledgerForm(l, preset) {
       <div class="field"><label class="lbl" for="l-group">Under group</label><select id="l-group" ${l && l.sys ? "disabled" : ""}>${groupOptions(p.group)}</select>${used ? `<span class="hint">Changing the group moves this account in every report.</span>` : ""}</div>
       <div class="field"><label class="lbl" for="l-open">Opening balance on ${dmy(B())}</label><div class="row2"><input id="l-open" type="number" step="0.01" value="${ob ? Math.abs(ob) : ""}" placeholder="0.00"><select id="l-dc"><option ${ob >= 0 ? "selected" : ""}>Dr</option><option ${ob < 0 ? "selected" : ""}>Cr</option></select></div></div>
       <div class="span2 party-fields formgrid" id="l-party">
+        <div class="field"><label class="lbl" for="l-ent">Entity type</label><select id="l-ent"><option value="">—</option>${ENTITY.map(([k, n]) => opt(k, n, p.entity === k)).join("")}</select></div>
         <div class="field"><label class="lbl" for="l-contact">Contact person</label><input id="l-contact" value="${esc(p.contact || "")}"></div>
         <div class="field"><label class="lbl" for="l-phone">Phone</label><input id="l-phone" inputmode="tel" value="${esc(p.phone || "")}"></div>
         <div class="field"><label class="lbl" for="l-wa">WhatsApp (if different)</label><input id="l-wa" inputmode="tel" value="${esc(p.whatsapp || "")}"></div>
@@ -3955,7 +3986,7 @@ function ledgerForm(l, preset) {
     const gst = g("l-gstin").trim().toUpperCase(); if (gst && !/^[0-9]{2}[A-Z0-9]{13}$/.test(gst)) return err.textContent = "GSTIN should be 15 characters, starting with the 2-digit state code.";
     const pan = g("l-pan").trim().toUpperCase(); if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) return err.textContent = "PAN should look like ABCDE1234F.";
     const grp = l && l.sys ? l.group : g("l-group"); const rec = Object.assign(l ? {...l} : {id: uid(), createdAt: nowIso()}, {name, group: grp, opening: r2(g("l-open")) * (g("l-dc") === "Cr" ? -1 : 1), notes: g("l-notes").trim()});
-    if (G(grp).party) Object.assign(rec, {contact: g("l-contact").trim(), phone: g("l-phone").trim(), whatsapp: g("l-wa").trim(), email: g("l-email").trim(), gstin: gst, pan, address: g("l-addr").trim(), city: g("l-city").trim(), stateCode: g("l-state"), folder: g("l-folder").trim()});
+    if (G(grp).party) Object.assign(rec, {contact: g("l-contact").trim(), phone: g("l-phone").trim(), whatsapp: g("l-wa").trim(), email: g("l-email").trim(), gstin: gst, pan, address: g("l-addr").trim(), city: g("l-city").trim(), stateCode: g("l-state"), folder: g("l-folder").trim(), entity: g("l-ent")});
     if (l && $("#l-act")) rec.active = $("#l-act").value === "1";
     upsert("ledgers", rec); if (!l) S.sel = rec.id; commit(); closeModal(); toast((isClient(rec) ? "Client" : "Account") + " saved: " + name); if (!l) autoDriveFor([rec.id]); });
   const del = $("#l-del"); if (del) del.addEventListener("click", () => { if (!del.dataset.c) { del.dataset.c = 1; del.textContent = "Confirm delete"; return; } removeRec("ledgers", l.id); S.sel = null; commit(); closeModal(); toast("Deleted"); });
@@ -4029,6 +4060,875 @@ function driveSubsFlow() {
   $("#sb-reset").addEventListener("click", () => { $("#sb-list").value = SUBS_DEFAULT.join("\n"); });
   $("#sb-save").addEventListener("click", () => { const l = $("#sb-list").value.split("\n").map(x => x.trim()).filter(Boolean); ST().driveSubs = [...new Set(l)]; ST().updatedAt = nowIso(); commit(); closeModal(); toast("Sub-folder list saved"); });
 }
+
+// ================= Compliance tracker: statutory due dates, status, reminders =================
+const ENTITY = [["company", "Private / Public Limited Company"], ["opc", "One Person Company"], ["llp", "LLP"], ["firm", "Partnership Firm"], ["individual", "Individual / Proprietor"], ["huf", "HUF"], ["trust", "Trust / Society / Section 8"], ["other", "Other"]];
+const entityName = k => (ENTITY.find(e => e[0] === k) || [, ""])[1];
+const GSTS = [["monthly", "Regular – monthly returns"], ["qrmp", "Regular – QRMP (quarterly)"], ["comp", "Composition"], ["none", "Not registered"]];
+// QRMP GSTR-3B: 22nd for these states/UTs, 24th for the rest
+const QRMP22 = new Set(["22", "23", "24", "26", "27", "29", "30", "31", "32", "33", "34", "35", "36", "37"]);
+const lastDay = (y, m) => new Date(y, m, 0).getDate();
+const ymd = (y, m, d) => { while (m > 12) { m -= 12; y++; } while (m < 1) { m += 12; y--; } return y + "-" + pad(m) + "-" + pad(Math.min(d, lastDay(y, m))); };
+const nx = (Y, M, d, off = 1) => ymd(Y, M + off, d);
+const tdsForm = (old, nw) => x => x.fy >= 2026 ? nw : old;
+// f: M monthly, Q quarterly (FY quarters), H half-yearly, Y annual (FY). due(Y, M, x): Y/M = period end year/month, x = {fy, q, h, state}
+const COMP = [
+  {k: "gstr1", cat: "GST", f: "M", n: "GSTR-1", r: "11th of next month", due: (Y, M) => nx(Y, M, 11)},
+  {k: "gstr3b", cat: "GST", f: "M", n: "GSTR-3B", r: "20th of next month", due: (Y, M) => nx(Y, M, 20)},
+  {k: "gstr1q", cat: "GST", f: "Q", n: "GSTR-1 (QRMP)", r: "13th after the quarter", due: (Y, M) => nx(Y, M, 13)},
+  {k: "iff", cat: "GST", f: "M", n: "IFF (QRMP, optional)", r: "13th of next month · first two months of a quarter", only: M => M % 3 !== 0, due: (Y, M) => nx(Y, M, 13)},
+  {k: "pmt06", cat: "GST", f: "M", n: "PMT-06 (QRMP tax payment)", r: "25th of next month · first two months of a quarter", only: M => M % 3 !== 0, due: (Y, M) => nx(Y, M, 25)},
+  {k: "gstr3bq", cat: "GST", f: "Q", n: "GSTR-3B (QRMP)", r: "22nd / 24th after the quarter (by state)", due: (Y, M, x) => nx(Y, M, QRMP22.has(x.state || "23") ? 22 : 24)},
+  {k: "cmp08", cat: "GST", f: "Q", n: "CMP-08 (composition)", r: "18th after the quarter", due: (Y, M) => nx(Y, M, 18)},
+  {k: "gstr4", cat: "GST", f: "Y", n: "GSTR-4 (composition annual)", r: "30 April", due: (Y, M) => nx(Y, M, 30)},
+  {k: "gstr7", cat: "GST", f: "M", n: "GSTR-7 (TDS under GST)", r: "10th of next month", due: (Y, M) => nx(Y, M, 10)},
+  {k: "gstr9", cat: "GST", f: "Y", n: "GSTR-9 (annual return)", r: "31 December", due: (Y, M) => nx(Y, M, 31, 9)},
+  {k: "gstr9c", cat: "GST", f: "Y", n: "GSTR-9C (reconciliation)", r: "31 December", due: (Y, M) => nx(Y, M, 31, 9)},
+  {k: "advtax", cat: "Income tax", f: "Q", n: "Advance tax instalment", r: "15 Jun · 15 Sep · 15 Dec · 15 Mar", due: (Y, M) => ymd(Y, M, 15)},
+  {k: "itr", cat: "Income tax", f: "Y", n: "ITR – no audit, no business (ITR-1/2)", r: "31 July", due: (Y, M) => nx(Y, M, 31, 4)},
+  {k: "itrbiz", cat: "Income tax", f: "Y", n: "ITR – business, no audit (ITR-3/4/5)", r: "31 August", due: (Y, M, x) => x.fy >= 2025 ? nx(Y, M, 31, 5) : nx(Y, M, 31, 4)},
+  {k: "taxaudit", cat: "Income tax", f: "Y", n: "Tax audit report (3CA/3CB–3CD)", r: "30 September", due: (Y, M) => nx(Y, M, 30, 6)},
+  {k: "itraudit", cat: "Income tax", f: "Y", n: "ITR – audit case / company", r: "31 October", due: (Y, M) => nx(Y, M, 31, 7)},
+  {k: "tp", cat: "Income tax", f: "Y", n: "ITR with transfer pricing (3CEB)", r: "30 November", due: (Y, M) => nx(Y, M, 30, 8)},
+  {k: "tdspay", cat: "TDS", f: "M", n: "TDS / TCS payment", r: "7th of next month (March: 30 April)", due: (Y, M) => M === 3 ? ymd(Y, 4, 30) : nx(Y, M, 7)},
+  {k: "tds24q", cat: "TDS", f: "Q", n: tdsForm("TDS return – salary (24Q)", "TDS return – salary (Form 138)"), r: "31 Jul · 31 Oct · 31 Jan · 31 May", due: (Y, M, x) => x.q === 4 ? ymd(Y, 5, 31) : nx(Y, M, 31)},
+  {k: "tds26q", cat: "TDS", f: "Q", n: tdsForm("TDS return – non-salary (26Q)", "TDS return – non-salary (Form 140)"), r: "31 Jul · 31 Oct · 31 Jan · 31 May", due: (Y, M, x) => x.q === 4 ? ymd(Y, 5, 31) : nx(Y, M, 31)},
+  {k: "tds27q", cat: "TDS", f: "Q", n: tdsForm("TDS return – non-resident (27Q)", "TDS return – non-resident (Form 144)"), r: "31 Jul · 31 Oct · 31 Jan · 31 May", due: (Y, M, x) => x.q === 4 ? ymd(Y, 5, 31) : nx(Y, M, 31)},
+  {k: "tcs27eq", cat: "TDS", f: "Q", n: tdsForm("TCS return (27EQ)", "TCS return (Form 143)"), r: "From FY 2026-27 same as TDS; earlier 15th", due: (Y, M, x) => x.fy >= 2026 ? (x.q === 4 ? ymd(Y, 5, 31) : nx(Y, M, 31)) : (x.q === 4 ? ymd(Y, 5, 15) : nx(Y, M, 15))},
+  {k: "statutory", cat: "Audit", f: "Y", n: "Statutory audit – complete & sign", r: "Target 31 August (before AGM)", due: (Y, M) => nx(Y, M, 31, 5)},
+  {k: "agm", cat: "ROC", f: "Y", n: "AGM – hold by", r: "30 September", due: (Y, M) => nx(Y, M, 30, 6)},
+  {k: "adt1", cat: "ROC", f: "Y", n: "ADT-1 (auditor appointment)", r: "15 days from AGM · 14 October", due: (Y, M) => nx(Y, M, 14, 7)},
+  {k: "aoc4", cat: "ROC", f: "Y", n: "AOC-4 (financial statements)", r: "30 days from AGM · 30 October", due: (Y, M) => nx(Y, M, 30, 7)},
+  {k: "mgt7", cat: "ROC", f: "Y", n: "MGT-7 / MGT-7A (annual return)", r: "60 days from AGM · 29 November", due: (Y, M) => nx(Y, M, 29, 8)},
+  {k: "dir3", cat: "ROC", f: "Y", n: "DIR-3 KYC (directors / partners)", r: "30 September", due: (Y, M) => nx(Y, M, 30, 6)},
+  {k: "dpt3", cat: "ROC", f: "Y", n: "DPT-3 (return of deposits)", r: "30 June", due: (Y, M) => nx(Y, M, 30, 3)},
+  {k: "msme1", cat: "ROC", f: "H", n: "MSME-1 (half-yearly)", r: "31 October · 30 April", due: (Y, M, x) => x.h === 1 ? nx(Y, M, 31) : nx(Y, M, 30)},
+  {k: "llp11", cat: "LLP", f: "Y", n: "LLP Form 11 (annual return)", r: "30 May", due: (Y, M) => nx(Y, M, 30, 2)},
+  {k: "llp8", cat: "LLP", f: "Y", n: "LLP Form 8 (accounts & solvency)", r: "30 October", due: (Y, M) => nx(Y, M, 30, 7)},
+  {k: "pf", cat: "Payroll", f: "M", n: "PF – ECR & payment", r: "15th of next month", due: (Y, M) => nx(Y, M, 15)},
+  {k: "esic", cat: "Payroll", f: "M", n: "ESIC – payment", r: "15th of next month", due: (Y, M) => nx(Y, M, 15)},
+];
+// notified extensions (statutory date otherwise): CBDT Circular 07/2026 for AY 2026-27
+const COMP_EXT = {"taxaudit|2025": ["2026-10-21", "Extended by CBDT"], "itraudit|2025": ["2026-11-21", "Extended by CBDT"]};
+const COMP_CATS = ["GST", "Income tax", "TDS", "Audit", "ROC", "LLP", "Payroll", "Other"];
+const compDef = k => COMP.find(c => c.k === k) || (ST().compCustom || []).find(c => c.k === k);
+const compName = (k, fy) => { const d = compDef(k); if (!d) return "Compliance"; return typeof d.n === "function" ? d.n({fy}) : d.n; };
+const STATUS = [["pending", "Pending", ""], ["docs", "Awaiting documents", "warn"], ["wip", "In progress", "acc"], ["filed", "Filed", "in"], ["na", "Not applicable", ""]];
+const stLabelC = k => (STATUS.find(s => s[0] === k) || STATUS[0])[1];
+const stCls = k => (STATUS.find(s => s[0] === k) || STATUS[0])[2];
+const isOpen = t => t.status !== "filed" && t.status !== "na";
+function presetFor(entity, gst, extra) {
+  const g = gst === "monthly" ? ["gstr1", "gstr3b", "gstr9"] : gst === "qrmp" ? ["gstr1q", "gstr3bq", "pmt06", "gstr9"] : gst === "comp" ? ["cmp08", "gstr4"] : [];
+  const by = {company: ["tdspay", "tds26q", "advtax", "statutory", "taxaudit", "itraudit", "agm", "adt1", "aoc4", "mgt7", "dir3", "dpt3", "msme1"],
+    opc: ["tdspay", "tds26q", "advtax", "statutory", "itraudit", "aoc4", "mgt7", "dir3", "dpt3", "msme1"],
+    llp: ["tdspay", "tds26q", "advtax", "itrbiz", "llp11", "llp8", "dir3"], firm: ["tdspay", "tds26q", "advtax", "itrbiz"],
+    individual: ["advtax", "itr"], huf: ["advtax", "itr"], trust: ["tdspay", "tds26q", "itraudit"], other: ["itr"]}[entity || "other"] || [];
+  return [...new Set([...g, ...by, ...(extra || [])])];
+}
+// periods whose due date can fall inside FY y (Apr y – Mar y+1)
+function compPeriods(def, y) {
+  const out = [];
+  if (def.f === "M") for (let a = y * 12 + 1; a <= (y + 1) * 12 + 2; a++) { const Y = Math.floor(a / 12), m = a % 12 + 1;
+    if (def.only && !def.only(m)) continue; out.push({key: Y + "-" + pad(m), Y, M: m, fy: fyOf(Y + "-" + pad(m) + "-01"), label: MON[m - 1] + " " + Y}); }
+  if (def.f === "Q") for (const fy of [y - 1, y]) for (let q = 1; q <= 4; q++) { const M = [6, 9, 12, 3][q - 1], Y = q === 4 ? fy + 1 : fy;
+    out.push({key: fyLabel(fy) + "-Q" + q, Y, M, fy, q, label: "Q" + q + " " + ["Apr–Jun", "Jul–Sep", "Oct–Dec", "Jan–Mar"][q - 1] + " (FY " + fyLabel(fy) + ")"}); }
+  if (def.f === "H") for (const fy of [y - 1, y]) for (let h = 1; h <= 2; h++) { const M = h === 1 ? 9 : 3, Y = h === 1 ? fy : fy + 1;
+    out.push({key: fyLabel(fy) + "-H" + h, Y, M, fy, h, label: (h === 1 ? "Apr–Sep" : "Oct–Mar") + " (FY " + fyLabel(fy) + ")"}); }
+  if (def.f === "Y") for (const fy of [y - 1, y]) out.push({key: fyLabel(fy), Y: fy + 1, M: 3, fy, label: "FY " + fyLabel(fy)});
+  return out;
+}
+function compDue(def, p, c) { const ext = COMP_EXT[def.k + "|" + p.fy]; if (ext) return ext[0];
+  if (def.custom) { const off = +def.off || 0; return def.f === "Y" ? nx(p.Y, p.M, +def.day || 30, off) : nx(p.Y, p.M, +def.day || 15, off); }
+  return def.due(p.Y, p.M, {fy: p.fy, q: p.q, h: p.h, state: c.stateCode || ST().stateCode}); }
+// create any missing tasks for clients' selected compliances (idempotent, ids are deterministic)
+function genComp(y) {
+  const have = new Set(D().comp.map(t => t.id)); let n = 0; const lo = fyStart(y), hi = fyEnd(y);
+  for (const c of clients()) { if (!(c.comp || []).length || c.active === false) continue; const from = c.compFrom || B();
+    for (const k of c.comp) { const def = compDef(k); if (!def) continue;
+      for (const p of compPeriods(def, y)) { const id = "cp:" + c.id + ":" + k + ":" + p.key; if (have.has(id) || D().tomb[id]) continue;
+        const due = compDue(def, p, c); if (due < lo || due > hi || due < from) continue;
+        D().comp.push({id, client: c.id, type: k, period: p.key, plabel: p.label, fy: p.fy, due, status: "pending", staff: c.compStaff || "", createdAt: nowIso(), updatedAt: nowIso()}); have.add(id); n++; } } }
+  return n;
+}
+let compGenT = 0; function ensureComp(y) { const n = genComp(y); if (n) { memo = {}; clearTimeout(compGenT); compGenT = setTimeout(() => persist(), 50); } return n; }
+const compTitle = t => t.title || compName(t.type, t.fy);
+const dueChip = t => { if (!isOpen(t)) return t.status === "filed" ? `<span class="pill in">Filed${t.filedOn ? " " + dmy(t.filedOn) : ""}</span>` : `<span class="pill">N/A</span>`;
+  const n = daysBetween(todayStr(), t.due); return n < 0 ? `<span class="pill out">${-n} day${n === -1 ? "" : "s"} late</span>` : n === 0 ? `<span class="pill out">Due today</span>` : n <= 7 ? `<span class="pill warn">In ${n} day${n === 1 ? "" : "s"}</span>` : `<span class="pill">In ${n} days</span>`; };
+const compOf = y => D().comp.filter(t => inFY(t.due, y) && led(t.client));
+function compStats(list) { const td = todayStr(), wk = addDays(td, 7), mo = td.slice(0, 7);
+  return {over: list.filter(t => isOpen(t) && t.due < td).length, week: list.filter(t => isOpen(t) && t.due >= td && t.due <= wk).length,
+    month: list.filter(t => t.due.slice(0, 7) === mo).length, monthDone: list.filter(t => t.due.slice(0, 7) === mo && !isOpen(t)).length, filed: list.filter(t => t.status === "filed").length}; }
+
+// ----- Compliance tab
+function vComp() {
+  ensureComp(S.fy); if (S.fy !== fyOf(todayStr())) ensureComp(fyOf(todayStr()));
+  const cf = S.cf; const all = compOf(S.fy); const st = compStats(all.concat(S.fy !== fyOf(todayStr()) ? [] : D().comp.filter(t => t.due < fyStart(S.fy) && isOpen(t) && led(t.client))));
+  const staff = [...new Set([...(ST().staff || []), ...all.map(t => t.staff).filter(Boolean)])];
+  const seg = `<div class="seg">${[["due", "Due & overdue"], ["month", "By month"], ["client", "By client"], ["setup", "Client setup"]].map(([k, l]) => `<button data-cview="${k}" aria-pressed="${cf.view === k}">${l}</button>`).join("")}</div>`;
+  const filt = cf.view === "setup" ? "" : `<div class="filters"><select id="cf-cat" aria-label="Category"><option value="">All categories</option>${COMP_CATS.map(c => opt(c, c, cf.cat === c)).join("")}</select>
+    <select id="cf-st" aria-label="Status"><option value="">All statuses</option>${STATUS.map(([k, l]) => opt(k, l, cf.st === k)).join("")}</select>
+    ${staff.length ? `<select id="cf-staff" aria-label="Staff"><option value="">Everyone</option>${staff.map(x => opt(x, x, cf.staff === x)).join("")}</select>` : ""}
+    <input id="cf-q" type="search" placeholder="Search client or compliance" value="${esc(cf.q)}">${cf.view === "month" ? `<select id="cf-month" aria-label="Month">${fyMonths(S.fy).map(m => opt(m, monLabel(m), cf.month === m)).join("")}</select>` : ""}</div>`;
+  const match = t => { const def = compDef(t.type) || {cat: "Other"}; if (cf.cat && (t.title ? "Other" : def.cat) !== cf.cat) return false; if (cf.st && t.status !== cf.st) return false; if (cf.staff && t.staff !== cf.staff) return false;
+    if (cf.q && !(lname(t.client) + " " + compTitle(t) + " " + (t.plabel || "")).toLowerCase().includes(cf.q.toLowerCase())) return false; return true; };
+  let body = "";
+  if (cf.view === "due") { const lim = addDays(todayStr(), 30); const rows = D().comp.filter(t => led(t.client) && isOpen(t) && t.due <= lim && match(t)).sort((a, b) => a.due.localeCompare(b.due) || lname(a.client).localeCompare(lname(b.client)));
+    body = rows.length ? compTable(rows, true) : `<div class="empty"><strong>Nothing due in the next 30 days</strong>${clients().some(c => (c.comp || []).length) ? "All caught up." : "Start with “Client setup”: choose each client's compliances and the due dates are created for you."}</div>`; }
+  if (cf.view === "month") { const m = cf.month || todayStr().slice(0, 7); const rows = all.filter(t => t.due.slice(0, 7) === m && match(t)).sort((a, b) => a.due.localeCompare(b.due));
+    const done = rows.filter(t => !isOpen(t)).length; body = `<div class="filters" style="margin-bottom:10px"><span class="pill">${rows.length} items</span><span class="pill in">${done} done</span><span class="pill ${rows.length - done ? "warn" : ""}">${rows.length - done} open</span><div class="bar" style="flex:1;min-width:120px"><i style="width:${rows.length ? Math.round(done * 100 / rows.length) : 0}%"></i></div></div>` + (rows.length ? compTable(rows, true) : `<div class="empty"><strong>No compliance due in ${monLabel(m)}</strong></div>`); }
+  if (cf.view === "client") { const by = new Map(); for (const t of all) { if (!match(t)) continue; const o = by.get(t.client) || {n: 0, open: 0, over: 0, done: 0, next: null}; o.n++; if (isOpen(t)) { o.open++; if (t.due < todayStr()) o.over++; if (!o.next || t.due < o.next.due) if (t.due >= todayStr()) o.next = t; } else o.done++; by.set(t.client, o); }
+    const rows = [...by].sort((a, b) => b[1].over - a[1].over || lname(a[0]).localeCompare(lname(b[0])));
+    body = rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Client</th><th class="r">Items FY</th><th class="r">Done</th><th class="r">Open</th><th class="r">Overdue</th><th>Next due</th><th class="r"></th></tr></thead><tbody>${rows.map(([id, o]) => `<tr class="click" data-ccl="${id}"><td><b>${esc(lname(id))}</b><div class="meta">${esc(entityName(led(id).entity) || "")}</div></td><td class="r num">${o.n}</td><td class="r num">${o.done}</td><td class="r num">${o.open}</td><td class="r num ${o.over ? "amt-out" : ""}">${o.over || "—"}</td><td class="small">${o.next ? esc(compTitle(o.next)) + " · " + dmy(o.next.due) : "—"}</td><td class="r"><button class="btn sm" data-cremind="${id}">Remind</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>No compliance items yet</strong>Use “Client setup” to choose each client's compliances.</div>`; }
+  if (cf.view === "setup") { const cl = clients().filter(c => c.active !== false);
+    body = `<div class="notice" style="margin-bottom:12px">Pick the entity type and GST scheme — the standard compliances are ticked for you, with due dates for every month, quarter and year. Due dates follow the Acts; extensions notified by CBDT / CBIC / MCA are applied where known, and you can edit any date.</div>
+    <div class="formgrid" style="margin-bottom:12px"><div class="field span2"><label class="lbl" for="cs-staff">Team members (for assigning work)</label><div class="row2" style="grid-template-columns:1fr auto"><input id="cs-staff" value="${esc((ST().staff || []).join(", "))}" placeholder="e.g. Rahul, Priya, Article – Aman"><button class="btn" data-act="savestaff">Save</button></div></div></div>
+    ${cl.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Client</th><th>Entity</th><th>GST</th><th class="r">Compliances</th><th>Assigned to</th><th class="r"></th></tr></thead><tbody>${cl.map(c => `<tr><td><b>${esc(c.name)}</b>${c.pan ? `<div class="meta">${esc(c.pan)}</div>` : ""}</td><td class="small">${esc(entityName(c.entity) || "—")}</td><td class="small">${esc((GSTS.find(g => g[0] === c.gstScheme) || [, c.gstin ? "Registered" : "—"])[1])}</td><td class="r num">${(c.comp || []).length || "—"}</td><td class="small">${esc(c.compStaff || "—")}</td><td class="r"><button class="btn sm ${(c.comp || []).length ? "" : "primary"}" data-csetup="${c.id}">${(c.comp || []).length ? "Edit" : "Set up"}</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>No clients yet</strong>Add clients first.</div>`}`; }
+  return `<div class="stack"><div class="grid cols-4">
+    <div class="panel stat ${st.over ? "hero" : ""}"><div class="label">Overdue</div><div class="value">${st.over}</div><div class="foot">Past the due date, not filed</div></div>
+    <div class="panel stat"><div class="label">Due in 7 days</div><div class="value">${st.week}</div><div class="foot">From today to ${dmy(addDays(todayStr(), 7))}</div></div>
+    <div class="panel stat"><div class="label">This month</div><div class="value">${st.monthDone}/${st.month}</div><div class="foot">Done of items due in ${monLabel(todayStr().slice(0, 7))}</div></div>
+    <div class="panel stat"><div class="label">Filed · FY ${fyLabel(S.fy)}</div><div class="value">${st.filed}</div><div class="foot">${all.length} items with due dates in this FY</div></div></div>
+  <div class="panel"><div class="panel-head">${seg}<div class="actions"><button class="btn sm" data-exp="comp:pdf">PDF</button><button class="btn sm" data-exp="comp:xlsx">Excel</button><button class="btn primary" data-act="comptask">+ Add task</button></div></div>${filt ? `<div style="margin-bottom:12px">${filt}</div>` : ""}${body}</div></div>`;
+}
+function compTable(rows, withClient) {
+  let last = ""; const staff = ST().staff || [];
+  return `<div class="tablewrap"><table class="wide"><thead><tr><th>Due</th>${withClient ? "<th>Client</th>" : ""}<th>Compliance</th><th>Status</th><th>Assigned</th><th class="r">Actions</th></tr></thead><tbody>${rows.map(t => {
+    const head = withClient && t.due !== last ? (last = t.due, `<tr class="sub"><td colspan="6">${esc(dLong(t.due))}${t.due === todayStr() ? " · today" : ""}</td></tr>`) : "";
+    return head + `<tr><td class="num" style="white-space:nowrap">${dmy(t.due)}<div style="margin-top:4px">${dueChip(t)}</div></td>${withClient ? `<td><button class="linkish" data-ccl="${t.client}">${esc(lname(t.client))}</button></td>` : ""}
+      <td><b>${esc(compTitle(t))}</b><div class="meta">${esc(t.plabel || "")}${t.ack ? " · Ack " + esc(t.ack) : ""}${t.ext ? " · " + esc(t.ext) : COMP_EXT[t.type + "|" + t.fy] ? " · " + COMP_EXT[t.type + "|" + t.fy][1] : ""}${t.notes ? " · " + esc(t.notes) : ""}</div></td>
+      <td><select class="cst" data-ct="${esc(t.id)}" aria-label="Status">${STATUS.map(([k, l]) => opt(k, l, t.status === k)).join("")}</select></td>
+      <td>${staff.length ? `<select class="csf" data-ct="${esc(t.id)}" aria-label="Assigned to"><option value="">—</option>${[...new Set([...staff, t.staff].filter(Boolean))].map(x => opt(x, x, t.staff === x)).join("")}</select>` : `<span class="small muted">${esc(t.staff || "—")}</span>`}</td>
+      <td class="r"><div class="actions" style="justify-content:flex-end">${isOpen(t) ? `<button class="btn sm primary" data-cfile="${esc(t.id)}">Mark filed</button>` : ""}<button class="btn sm" data-cedit="${esc(t.id)}">Edit</button></div></td></tr>`; }).join("")}</tbody></table></div>`;
+}
+function compSet(id, patch) { const t = D().comp.find(x => x.id === id); if (!t) return; upsert("comp", Object.assign({...t}, patch)); commit(); }
+function compFiled(id) { const t = D().comp.find(x => x.id === id); if (!t) return; const c = led(t.client);
+  openModal(`<div class="modal-head"><div><div class="small muted">${esc(c.name)} · ${esc(t.plabel || "")}</div><h2>Mark filed · ${esc(compTitle(t))}</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+    <form id="cf-form" class="formgrid"><div class="field"><label class="lbl" for="cf-on">Filed on</label><input id="cf-on" type="date" value="${esc(t.filedOn || todayStr())}"></div>
+    <div class="field"><label class="lbl" for="cf-ack">ARN / SRN / acknowledgement no.</label><input id="cf-ack" value="${esc(t.ack || "")}"></div>
+    <div class="field span2"><label class="lbl" for="cf-n">Note (optional)</label><input id="cf-n" value="${esc(t.notes || "")}" placeholder="e.g. Filed with late fee ₹50"></div>
+    <label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cf-bill" style="width:auto"> Raise an invoice for this work now</label>
+    <div class="modal-foot span2"><span></span><div class="right"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div></form>`);
+  $("#cf-form").addEventListener("submit", e => { e.preventDefault(); const on = $("#cf-on").value || todayStr(); compSet(id, {status: "filed", filedOn: on, ack: $("#cf-ack").value.trim(), notes: $("#cf-n").value.trim()});
+    toast(compTitle(t) + " marked filed for " + c.name); if ($("#cf-bill").checked) invoiceForm(null, {party: c.id, items: [{desc: compTitle(t) + " – " + (t.plabel || ""), sac: compSac(t), amount: ""}]}); else closeModal(); }); }
+const compSac = t => { const cat = (compDef(t.type) || {}).cat; return cat === "Audit" ? "998221" : cat === "ROC" || cat === "LLP" ? "998214" : cat === "Payroll" ? "998223" : cat === "Income tax" ? (["individual", "huf"].includes((led(t.client) || {}).entity) ? "998232" : "998231") : ST().defaultSac || "998222"; };
+function compEdit(id) { const t = id ? D().comp.find(x => x.id === id) : null; const staff = ST().staff || [];
+  openModal(`<div class="modal-head"><h2>${t ? esc(compTitle(t)) : "New task"}</h2><button class="x" data-close aria-label="Close">×</button></div>
+    <form id="ce-form" class="formgrid">${t ? `<div class="field span2"><div class="small muted">${esc(lname(t.client))} · ${esc(t.plabel || "")}</div></div>` : `${picker("ce-cl", "Client", "client", "", "debtors", "Client name")}<div class="field span2"><label class="lbl" for="ce-title">Task</label><input id="ce-title" list="dl-comp" placeholder="e.g. Form 15CA/CB, Trademark reply, Income tax notice reply"><datalist id="dl-comp">${COMP.map(d => `<option value="${esc(typeof d.n === "function" ? d.n({fy: S.fy}) : d.n)}"></option>`).join("")}</datalist></div>`}
+    <div class="field"><label class="lbl" for="ce-due">Due date</label><input id="ce-due" type="date" value="${esc(t ? t.due : addDays(todayStr(), 7))}"></div>
+    <div class="field"><label class="lbl" for="ce-st">Status</label><select id="ce-st">${STATUS.map(([k, l]) => opt(k, l, (t ? t.status : "pending") === k)).join("")}</select></div>
+    <div class="field"><label class="lbl" for="ce-staff">Assigned to</label><input id="ce-staff" list="dl-staff" value="${esc(t ? t.staff || "" : "")}"><datalist id="dl-staff">${staff.map(x => `<option value="${esc(x)}"></option>`).join("")}</datalist></div>
+    <div class="field"><label class="lbl" for="ce-ack">ARN / SRN / ack no.</label><input id="ce-ack" value="${esc(t ? t.ack || "" : "")}"></div>
+    <div class="field"><label class="lbl" for="ce-on">Filed on</label><input id="ce-on" type="date" value="${esc(t ? t.filedOn || "" : "")}"></div>
+    <div class="field span2"><label class="lbl" for="ce-n">Notes</label><input id="ce-n" value="${esc(t ? t.notes || "" : "")}"></div><div class="err span2" id="ce-err"></div>
+    <div class="modal-foot span2">${t ? `<button type="button" class="btn danger" id="ce-del">Remove</button>` : "<span></span>"}<div class="right"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div></form>`);
+  if (!t) bindPicker("ce-cl");
+  $("#ce-form").addEventListener("submit", e => { e.preventDefault(); const err = $("#ce-err"); const due = $("#ce-due").value; if (!due) return err.textContent = "Enter the due date.";
+    const patch = {due, status: $("#ce-st").value, staff: $("#ce-staff").value.trim(), ack: $("#ce-ack").value.trim(), filedOn: $("#ce-on").value, notes: $("#ce-n").value.trim()};
+    if (patch.status === "filed" && !patch.filedOn) patch.filedOn = todayStr();
+    if (t) { if (due !== t.due) patch.ext = "Due date changed"; upsert("comp", Object.assign({...t}, patch)); }
+    else { const r = resolvePicker("ce-cl", "the client"); if (r.error) return err.textContent = r.error; const title = $("#ce-title").value.trim(); if (!title) return err.textContent = "Describe the task.";
+      if (r.create) upsert("ledgers", r.create); upsert("comp", Object.assign({id: "ct:" + uid(), client: r.id || r.create.id, type: "custom", title, period: "", plabel: "One-off task", fy: fyOf(due), createdAt: nowIso()}, patch)); }
+    commit(); closeModal(); toast("Saved"); });
+  const del = $("#ce-del"); if (del) del.addEventListener("click", () => { if (!del.dataset.c) { del.dataset.c = 1; del.textContent = "Confirm remove"; return; } removeRec("comp", t.id); commit(); closeModal(); toast("Removed"); }); }
+function compSetup(id) { const c = led(id); const sel = new Set(c.comp || []); const entity = c.entity || "", gst = c.gstScheme || (c.gstin ? "monthly" : "none");
+  const grp = COMP_CATS.filter(cat => COMP.some(d => d.cat === cat)).map(cat => `<fieldset class="cgrp"><legend>${cat}</legend>${COMP.filter(d => d.cat === cat).map(d => `<label class="cchk"><input type="checkbox" value="${d.k}" ${sel.has(d.k) ? "checked" : ""}><span><b>${esc(typeof d.n === "function" ? d.n({fy: S.fy}) : d.n)}</b><span class="meta">${esc(d.r)}</span></span></label>`).join("")}</fieldset>`).join("");
+  openModal(`<div class="modal-head"><div><div class="small muted">Compliance set-up</div><h2>${esc(c.name)}</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+    <div class="formgrid"><div class="field"><label class="lbl" for="cs-ent">Entity type</label><select id="cs-ent"><option value="">Choose…</option>${ENTITY.map(([k, l]) => opt(k, l, entity === k)).join("")}</select></div>
+      <div class="field"><label class="lbl" for="cs-gst">GST</label><select id="cs-gst">${GSTS.map(([k, l]) => opt(k, l, gst === k)).join("")}</select></div>
+      <div class="field"><label class="lbl" for="cs-from">Track due dates from</label><input id="cs-from" type="date" value="${esc(c.compFrom || todayStr().slice(0, 8) + "01")}"><span class="hint">Earlier due dates are not added.</span></div>
+      <div class="field"><label class="lbl" for="cs-staff1">Usually handled by</label><input id="cs-staff1" list="dl-staff2" value="${esc(c.compStaff || "")}"><datalist id="dl-staff2">${(ST().staff || []).map(x => `<option value="${esc(x)}"></option>`).join("")}</datalist></div>
+      <div class="span2 filters"><button type="button" class="btn sm" id="cs-preset">Tick the standard set for this entity</button><button type="button" class="btn sm ghost" id="cs-none">Clear all</button><span class="small muted" id="cs-n"></span></div>
+      <div class="span2 cgrid">${grp}</div></div>
+    <div class="modal-foot"><span class="small muted">Removing a compliance deletes only its open future items; filed records stay.</span><div class="right"><button class="btn" data-close>Cancel</button><button class="btn primary" id="cs-save">Save</button></div></div>`, "wide");
+  const cnt = () => { $("#cs-n").textContent = $$(".cchk input:checked").length + " selected"; }; cnt(); $$(".cchk input").forEach(i => i.addEventListener("change", cnt));
+  $("#cs-preset").addEventListener("click", () => { const ent = $("#cs-ent").value; if (!ent) { toast("Choose the entity type first."); return; } const ks = new Set(presetFor(ent, $("#cs-gst").value)); $$(".cchk input").forEach(i => i.checked = ks.has(i.value)); cnt(); });
+  $("#cs-none").addEventListener("click", () => { $$(".cchk input").forEach(i => i.checked = false); cnt(); });
+  $("#cs-save").addEventListener("click", () => { const ks = $$(".cchk input:checked").map(i => i.value); const rec = {...c, entity: $("#cs-ent").value, gstScheme: $("#cs-gst").value, comp: ks, compFrom: $("#cs-from").value || todayStr(), compStaff: $("#cs-staff1").value.trim()};
+    upsert("ledgers", rec); const keep = new Set(ks); const td = todayStr();
+    for (const t of D().comp.filter(t => t.client === id && t.type !== "custom" && !keep.has(t.type) && t.status === "pending" && t.due >= td)) removeRec("comp", t.id);
+    memo = {}; const n = genComp(fyOf(td)) + (S.fy !== fyOf(td) ? genComp(S.fy) : 0); commit(); closeModal(); toast("Compliance saved for " + c.name + (n ? " · " + n + " due dates added" : "")); }); }
+function compClient(id) { const c = led(id); const y = S.fy; ensureComp(y); const rows = D().comp.filter(t => t.client === id && (inFY(t.due, y) || (isOpen(t) && t.due < fyStart(y)))).sort((a, b) => a.due.localeCompare(b.due));
+  openModal(`<div class="modal-head"><div><div class="small muted">${esc(entityName(c.entity) || "Compliance")} · FY ${fyLabel(y)}</div><h2>${esc(c.name)}</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+    ${rows.length ? compTable(rows, false) : `<div class="empty"><strong>No compliance items</strong>Set up this client's compliances to track due dates.</div>`}
+    <div class="modal-foot"><div class="actions"><button class="btn" data-csetup="${id}">Set up compliances</button><button class="btn" id="cc-pdf">Status PDF</button></div><div class="right"><button class="btn" data-cremind="${id}">Send reminder</button><button class="btn primary" data-close>Done</button></div></div>`, "wide");
+  bindCompRows($("#modal-root"));
+  $("#cc-pdf").addEventListener("click", e => { const b = e.currentTarget; b.disabled = true; exportSpec(specComp(y, {client: id}), "pdf").finally(() => b.disabled = false); }); }
+function compRemind(id, channel) { const c = led(id); const lim = addDays(todayStr(), 30);
+  const rows = D().comp.filter(t => t.client === id && isOpen(t) && t.due <= lim).sort((a, b) => a.due.localeCompare(b.due));
+  const list = rows.length ? rows.map(t => `• ${compTitle(t)}${t.plabel && t.plabel !== "One-off task" ? " – " + t.plabel : ""}: due ${dLong(t.due)}${t.due < todayStr() ? " (overdue)" : ""}`).join("\n") : "• No compliance is pending right now.";
+  compose(channel, {client: id, kind: "comp", vars: {list, entity: c.name}}); }
+function bindCompRows(root) {
+  root.addEventListener("change", e => { const s = e.target.closest(".cst"); if (s) { if (s.value === "filed") { compFiled(s.dataset.ct); return; } compSet(s.dataset.ct, {status: s.value}); if ($("#ov") && root.id === "modal-root") { const t = D().comp.find(x => x.id === s.dataset.ct); if (t) compClient(t.client); } return; }
+    const f = e.target.closest(".csf"); if (f) compSet(f.dataset.ct, {staff: f.value}); });
+  root.addEventListener("click", e => { const b = e.target.closest("[data-cfile],[data-cedit],[data-ccl],[data-csetup],[data-cremind]"); if (!b) return; const d = b.dataset;
+    if (d.cfile) return compFiled(d.cfile); if (d.cedit) return compEdit(d.cedit); if (d.ccl) return compClient(d.ccl); if (d.csetup) return compSetup(d.csetup);
+    if (d.cremind) { const c = led(d.cremind); openModal(`<div class="modal-head"><h2>Remind ${esc(c.name)}</h2><button class="x" data-close aria-label="Close">×</button></div><p>Send the list of compliances due in the next 30 days and ask for documents.</p><div class="modal-foot"><span></span><div class="right"><button class="btn" id="cr-wa">WhatsApp</button><button class="btn primary" id="cr-em">Email</button></div></div>`);
+      $("#cr-wa").addEventListener("click", () => compRemind(d.cremind, "whatsapp")); $("#cr-em").addEventListener("click", () => compRemind(d.cremind, "email")); } });
+}
+// dashboard panel
+function compDashPanel() {
+  if (!clients().some(c => (c.comp || []).length)) return `<div class="panel"><div class="panel-head"><h2>Compliance due dates</h2><button class="btn ghost sm" data-tab="comp">Set up →</button></div><div class="empty"><strong>Track every client's due dates</strong>GST, TDS, ITR, ROC and LLP deadlines with reminders — set up once per client.</div></div>`;
+  ensureComp(fyOf(todayStr())); const td = todayStr(), lim = addDays(td, 10); const rows = D().comp.filter(t => led(t.client) && isOpen(t) && t.due <= lim).sort((a, b) => a.due.localeCompare(b.due)); const over = rows.filter(t => t.due < td).length;
+  return `<div class="panel"><div class="panel-head"><h2>Compliance · next 10 days</h2><div class="actions">${over ? `<span class="pill out">${over} overdue</span>` : ""}<button class="btn ghost sm" data-tab="comp">All →</button></div></div>
+    ${rows.length ? `<div class="tablewrap"><table><tbody>${rows.slice(0, 7).map(t => `<tr class="click" data-cgo="${esc(t.id)}"><td class="num" style="width:1%;white-space:nowrap">${dmy(t.due)}</td><td><b>${esc(compTitle(t))}</b><div class="meta">${esc(lname(t.client))} · ${esc(t.plabel || "")}</div></td><td class="r">${dueChip(t)}</td></tr>`).join("")}</tbody></table></div>${rows.length > 7 ? `<p class="small muted" style="margin:8px 0 0">+ ${rows.length - 7} more</p>` : ""}` : `<div class="empty"><strong>Nothing due in the next 10 days</strong></div>`}</div>`;
+}
+// report
+function specComp(y, o = {}) { const rows0 = D().comp.filter(t => led(t.client) && inFY(t.due, y) && (!o.client || t.client === o.client)).sort((a, b) => a.due.localeCompare(b.due) || lname(a.client).localeCompare(lname(b.client)));
+  const rows = []; let m = ""; for (const t of rows0) { if (t.due.slice(0, 7) !== m) { m = t.due.slice(0, 7); rows.push({c: [monLabel(m), "", "", "", "", "", ""], t: "sub"}); }
+    rows.push({c: [dmy(t.due), o.client ? (t.plabel || "") : lname(t.client), compTitle(t) + (o.client ? "" : " · " + (t.plabel || "")), stLabelC(t.status) + (isOpen(t) && t.due < todayStr() ? " (overdue)" : ""), t.filedOn ? dmy(t.filedOn) : "", t.ack || "", t.staff || ""]}); }
+  const c = o.client ? led(o.client) : null; const st = compStats(rows0);
+  return {title: "Compliance Status", subtitle: (c ? c.name + " · " : "") + "FY " + fyLabel(y) + " · as on " + dLong(todayStr()), sheet: "Compliance", fileName: "Compliance status " + (c ? c.name + " " : "") + "FY " + fyLabel(y), landscape: true,
+    party: c ? {label: "Client", name: c.name, lines: [entityName(c.entity), c.pan ? "PAN: " + c.pan : "", c.gstin ? "GSTIN: " + c.gstin : ""].filter(Boolean)} : null,
+    meta: [["Items", String(rows0.length)], ["Filed", String(st.filed)], ["Overdue", String(st.over)], ["Due in 7 days", String(st.week)]],
+    tables: [{cols: [C("Due date", 22), C(o.client ? "Period" : "Client", o.client ? 40 : 52), C("Compliance", 70), C("Status", 34), C("Filed on", 22), C("ARN / SRN / Ack", 40), C("Assigned", 26)], rows: rows.length ? rows : [{c: ["", "No compliance items", "", "", "", "", ""]}]}],
+    notes: ["Due dates are as per the respective Acts and rules, including extensions notified by CBDT / CBIC / MCA where known. Please verify any later notification."], sign: !!c}; }
+// portal: what the client sees
+function compPacket(c) { const y = fyOf(todayStr()); return D().comp.filter(t => t.client === c.id && (inFY(t.due, y) || inFY(t.due, y - 1) || (isOpen(t) && t.due < fyStart(y)))).sort((a, b) => a.due.localeCompare(b.due))
+  .map(t => ({n: compTitle(t), p: t.plabel || "", due: t.due, st: t.status, on: t.filedOn || "", ack: t.ack || ""})); }
+
+// ================= Letters: engagement letters, audit correspondence, certificates — on the firm's letterhead =================
+// body markup: blank line = new paragraph · "## " heading · "1. " / "(a) " / "- " list item · "| a | b |" table row
+const fyOpts = () => { const y = fyOf(todayStr()); const o = []; for (let k = y + 1; k >= y - 4; k--) o.push(fyLabel(k)); return o; };
+const prevFY = () => fyLabel(fyOf(todayStr()) - 1);
+const LCATS = ["Engagement", "Audit", "Certificates", "Tax & GST", "Client service"];
+const LT = [
+  {k: "eng_audit", cat: "Engagement", n: "Engagement letter – Statutory audit (company)", to: "board", sign: "firm", accept: true, d: "SA 210 terms for the audit under the Companies Act, 2013",
+    f: [["fy", "Financial year", "fy", prevFY], ["fees", "Audit fee (₹)", "money"], ["oope", "Out-of-pocket expenses", "text", "at actuals"], ["report_by", "Report expected by", "date"], ["framework", "Accounting framework", "text", "the Companies Act, 2013 and the Accounting Standards notified under section 133 of the Act"]],
+    sub: "Engagement for the statutory audit of the financial statements for the financial year {fy}",
+    body: `Dear Sirs,
+
+We refer to our appointment as statutory auditors of {client} ("the Company") under section 139 of the Companies Act, 2013 ("the Act"). As required by Standard on Auditing (SA) 210, "Agreeing the Terms of Audit Engagements", we set out below our understanding of the objective, scope and terms of this engagement for the financial year ending 31 March {fy_end}.
+
+## Objective and scope of the audit
+You have requested that we audit the financial statements of the Company, which comprise the Balance Sheet as at 31 March {fy_end}, the Statement of Profit and Loss and the Cash Flow Statement (where applicable) for the year then ended, and notes to the financial statements including a summary of significant accounting policies.
+
+The objectives of our audit are to obtain reasonable assurance about whether the financial statements as a whole are free from material misstatement, whether due to fraud or error, and to issue an auditor's report containing our opinion, together with our reports under section 143 of the Act, including the Companies (Auditor's Report) Order, 2020 where applicable.
+
+## Our responsibilities
+We will conduct the audit in accordance with the Standards on Auditing issued by the Institute of Chartered Accountants of India. Those standards require that we comply with ethical requirements and plan and perform the audit to obtain reasonable assurance. Because of the inherent limitations of an audit, together with the inherent limitations of internal control, there is an unavoidable risk that some material misstatements may not be detected, even though the audit is properly planned and performed.
+
+## Responsibilities of the Board of Directors and management
+Our audit will be conducted on the basis that the Board of Directors and management acknowledge and understand their responsibility:
+(a) for the preparation of financial statements that give a true and fair view in accordance with {framework};
+(b) for such internal control, including internal financial controls where applicable, as management determines is necessary to enable the preparation of financial statements that are free from material misstatement, whether due to fraud or error; and
+(c) to provide us with access to all records, documentation and other matters relevant to the preparation of the financial statements, additional information that we may request for the purpose of the audit, and unrestricted access to persons within the Company from whom we consider it necessary to obtain audit evidence.
+
+As part of our audit process, we will request written representations from management concerning matters relevant to the audit, as required by SA 580.
+
+## Fees
+Our fee for the statutory audit will be {fees_text}. Out-of-pocket expenses will be charged {oope}. Fees for any other services, such as tax audit, certification, return filing or representation, will be agreed separately. Our invoices are payable within 15 days of presentation.
+
+## Reporting
+The form and content of our report may need to be amended in the light of our audit findings. Subject to timely availability of records and information, we expect to issue our report by {report_by}.
+
+Please sign and return the duplicate copy of this letter to confirm that it is in accordance with your understanding of the arrangements for our audit.
+
+Yours faithfully,`, acc: "Acknowledged and agreed on behalf of {client} by its Board of Directors."},
+  {k: "eng_taxaudit", cat: "Engagement", n: "Engagement letter – Tax audit (section 44AB)", to: "client", sign: "firm", accept: true, d: "Form 3CA/3CB with 3CD",
+    f: [["fy", "Previous year", "fy", prevFY], ["form", "Audit report form", "select", "3CB", ["3CA", "3CB"]], ["fees", "Fee (₹)", "money"], ["data_by", "Accounts and data required by", "date"]],
+    sub: "Tax audit under section 44AB of the Income-tax Act, 1961 for the previous year {fy}",
+    body: `Dear {contact},
+
+We are pleased to confirm our acceptance of the engagement to conduct the tax audit of {client} under section 44AB of the Income-tax Act, 1961 for the previous year {fy} (assessment year {ay}), and to furnish the audit report in Form No. {form} along with the statement of particulars in Form No. 3CD.
+
+## Scope of our work
+1. We will examine the books of account and other records to report on the particulars required in Form No. 3CD, in accordance with the Guidance Note on Tax Audit under section 44AB issued by the Institute of Chartered Accountants of India.
+2. Our report will be uploaded on the income-tax portal and becomes effective only on its acceptance by you on the portal.
+3. This engagement does not include preparation or filing of the return of income, representation before the tax authorities, or any other attest service, which will be undertaken only if separately agreed.
+
+## Your responsibilities
+1. Maintaining proper books of account and supporting documents, and making them available to us.
+2. Preparing the financial statements and furnishing the information required for Form No. 3CD, including details of TDS/TCS, loans and deposits, payments to related parties, dues to MSMEs and GST reconciliations.
+3. Providing a written management representation at the conclusion of our audit.
+
+## Timelines and fees
+To enable us to furnish the report within the due date, we request that the finalised accounts and complete information be made available to us by {data_by}. Our fee for this engagement will be {fees_text}, payable on submission of the report.
+
+Kindly sign and return a copy of this letter as a token of your acceptance of these terms.
+
+Yours faithfully,`, acc: "We accept the terms of this engagement on behalf of {client}."},
+  {k: "eng_gst", cat: "Engagement", n: "Engagement letter – GST compliance (retainer)", to: "client", sign: "firm", accept: true, d: "Monthly / quarterly GST returns",
+    f: [["start", "With effect from", "text", () => MON[new Date().getMonth()] + " " + new Date().getFullYear()], ["fees", "Monthly fee (₹)", "money"], ["data_day", "Data required by (day of next month)", "text", "5th"],
+      ["scope", "Scope (one per line)", "area", "- Preparation and filing of GSTR-1 (and IFF, where opted) and GSTR-3B\n- Reconciliation of input tax credit with GSTR-2B and follow-up of mismatches with you\n- Computation of tax liability, interest and late fee, and preparation of payment challans\n- Maintenance of a monthly compliance calendar and reminders"]],
+    sub: "Engagement for GST compliance services",
+    body: `Dear {contact},
+
+Thank you for choosing {firm} for your GST compliance. This letter sets out the terms on which we will provide our services to {client} (GSTIN {client_gstin}) with effect from {start}.
+
+## Scope of services
+{scope}
+
+Annual return (GSTR-9), reconciliation statement (GSTR-9C), refund applications, replies to notices, audits and representation before the department are outside this engagement and will be undertaken on a separate fee.
+
+## Your responsibilities
+1. Sharing complete sales, purchase, credit/debit note and expense data, with supporting documents, by the {data_day} of the following month.
+2. Ensuring that tax, interest and late fee are paid from your electronic ledgers on or before the due date.
+3. Confirming the return data shared with you for approval before filing; returns will be filed only on your confirmation.
+
+Late fee, interest or penalty arising from delay in sharing data or in payment of tax will be borne by you.
+
+## Fees
+Our fee will be {fees_text} per month, payable in advance by the 10th of each month. The fee will be reviewed every year.
+
+Kindly sign and return a copy of this letter in token of your acceptance.
+
+Yours faithfully,`, acc: "We accept the above terms on behalf of {client}."},
+  {k: "eng_itr", cat: "Engagement", n: "Engagement letter – Income tax return filing", to: "client", sign: "firm", accept: true, d: "ITR preparation and filing",
+    f: [["ay", "Assessment year", "ay", () => fyLabel(fyOf(todayStr()))], ["fees", "Fee (₹)", "money"], ["data_by", "Documents required by", "date"]],
+    sub: "Preparation and filing of income tax return for assessment year {ay}",
+    body: `Dear {contact},
+
+We are pleased to confirm the terms on which we will prepare and file the return of income of {client} (PAN {client_pan}) for assessment year {ay}.
+
+## Our services
+1. Computation of total income and tax liability on the basis of the information and documents provided by you.
+2. Reconciliation of income and tax credits with Form 26AS, the Annual Information Statement (AIS) and the Taxpayer Information Summary (TIS).
+3. Filing of the return on the income-tax portal after your approval of the computation, and assistance with e-verification.
+
+## Your responsibilities
+You are responsible for the completeness and accuracy of the information provided, including all bank accounts, investments, capital gains, foreign assets and income, and for retaining supporting evidence for deductions claimed. We request the documents by {data_by}.
+
+## Fees
+Our fee will be {fees_text}, payable on filing of the return. Revised returns, replies to notices, rectification and representation before the department are outside this engagement and will be charged separately.
+
+Kindly sign and return a copy of this letter as your acceptance.
+
+Yours faithfully,`, acc: "Accepted by {client}."},
+  {k: "eng_books", cat: "Engagement", n: "Engagement letter – Accounting & bookkeeping", to: "client", sign: "firm", accept: true, d: "Monthly accounting services",
+    f: [["software", "Accounting software", "text", "Tally Prime"], ["freq", "Frequency", "select", "monthly", ["monthly", "quarterly"]], ["fees", "Fee per month (₹)", "money"], ["start", "With effect from", "text", () => MON[new Date().getMonth()] + " " + new Date().getFullYear()]],
+    sub: "Engagement for accounting and bookkeeping services",
+    body: `Dear {contact},
+
+We are pleased to confirm the terms on which we will maintain the books of account of {client} with effect from {start}.
+
+## Scope of services
+1. Recording of sales, purchases, expenses, receipts, payments and journal entries in {software} on a {freq} basis, from the documents and bank statements provided by you.
+2. Monthly bank reconciliation and ledger scrutiny of debtors and creditors.
+3. Preparation of {freq} MIS: profit and loss summary, receivables and payables ageing, and GST and TDS liability workings.
+4. Preparation of year-end trial balance and draft financial statements for audit.
+
+Our engagement is limited to compilation of financial information. It is not an audit or review, and we will not express any assurance on it. The responsibility for the accuracy and completeness of the records, and for internal controls, remains with you.
+
+## Fees
+Our fee will be {fees_text} per month, payable by the 10th of the following month.
+
+Kindly sign and return a copy of this letter in acceptance.
+
+Yours faithfully,`, acc: "Accepted on behalf of {client}."},
+  {k: "eng_roc", cat: "Engagement", n: "Engagement letter – ROC annual compliance", to: "board", sign: "firm", accept: true, d: "AOC-4, MGT-7/7A, ADT-1, DIR-3 KYC",
+    f: [["fy", "Financial year", "fy", prevFY], ["fees", "Fee (₹)", "money"]],
+    sub: "Annual secretarial and ROC compliance for the financial year {fy}",
+    body: `Dear Sirs,
+
+We are pleased to confirm the terms on which we will assist {client} ("the Company") with its annual filings under the Companies Act, 2013 for the financial year {fy}.
+
+## Scope of services
+1. Drafting of notices, agenda and minutes of the Board meeting approving the financial statements and of the Annual General Meeting.
+2. Preparation and filing of e-form AOC-4 (financial statements) and MGT-7 / MGT-7A (annual return) with the Registrar of Companies.
+3. Filing of e-form ADT-1 for appointment or re-appointment of the auditor, where applicable.
+4. DIR-3 KYC of directors, and DPT-3 and MSME-1 returns where applicable.
+
+Government filing fees, additional fees for delay and stamp duty are payable by the Company at actuals. Any event-based filings, such as change in directors, registered office or capital, will be charged separately.
+
+## Fees
+Our professional fee will be {fees_text}.
+
+Please sign and return a copy of this letter in acceptance.
+
+Yours faithfully,`, acc: "Acknowledged and agreed on behalf of {client}."},
+  {k: "quote", cat: "Engagement", n: "Fee proposal / quotation", to: "client", sign: "firm", d: "Services with fees, validity and terms",
+    f: [["services", "Services and fees (one row per line)", "area", "| Service | Fee (₹) |\n| Statutory audit for FY " + "{fy}" + " | 50,000 |\n| Tax audit under section 44AB | 25,000 |\n| Income tax return filing | 10,000 |"], ["fy", "Financial year", "fy", prevFY], ["valid", "Valid for (days)", "text", "30"]],
+    sub: "Fee proposal for professional services",
+    body: `Dear {contact},
+
+Thank you for considering {firm} for your professional requirements. Based on our discussion, we are pleased to submit our fee proposal:
+
+{services}
+
+## Terms
+1. GST at the applicable rate will be charged in addition to the fees above.
+2. Government fees, stamp duty and out-of-pocket expenses will be charged at actuals.
+3. 50% of the fee is payable on acceptance and the balance on completion, unless agreed otherwise.
+4. This proposal is valid for {valid} days from the date of this letter.
+
+We look forward to working with you. Please feel free to contact us for any clarification.
+
+Yours faithfully,`},
+  {k: "consent139", cat: "Audit", n: "Consent & eligibility certificate (sections 139 & 141)", to: "board", sign: "firm", d: "For appointment as statutory auditor",
+    f: [["term", "Proposed term", "area", "for a term of five consecutive years from the conclusion of the ensuing Annual General Meeting till the conclusion of the sixth Annual General Meeting"]],
+    sub: "Consent and certificate for appointment as statutory auditors under sections 139(1) and 141 of the Companies Act, 2013",
+    body: `Dear Sirs,
+
+We refer to the proposal to appoint us as statutory auditors of {client} ("the Company") {term}.
+
+We hereby give our consent to act as statutory auditors of the Company, if appointed. As required under section 139(1) of the Companies Act, 2013 read with rule 4 of the Companies (Audit and Auditors) Rules, 2014, we certify that:
+(a) we are eligible for appointment and are not disqualified for appointment under the Companies Act, 2013, the Chartered Accountants Act, 1949 and the rules or regulations made thereunder;
+(b) the proposed appointment is as per the term provided under the Act;
+(c) the proposed appointment is within the limits laid down by or under the authority of the Act;
+(d) we satisfy the criteria provided in section 141 of the Act; and
+(e) there are no pending proceedings against us or any of our partners relating to matters of professional conduct.
+
+Firm Registration Number: {frn}
+
+Yours faithfully,`},
+  {k: "prevauditor", cat: "Audit", n: "Letter to previous auditor (before accepting audit)", to: "field:prev", sign: "firm", d: "Clause (8), Part I, First Schedule to the CA Act",
+    f: [["prev", "Previous auditor (name and address)", "area", "M/s ___________, Chartered Accountants\nAddress"], ["fy", "Financial year of audit", "fy", () => fyLabel(fyOf(todayStr()))]],
+    sub: "Proposed appointment as statutory auditors of {client}",
+    body: `Dear Sir/Madam,
+
+We have been approached by {client} to act as their statutory auditors for the financial year {fy}. We understand that you were the auditors of the entity for the preceding period.
+
+In accordance with Clause (8) of Part I of the First Schedule to the Chartered Accountants Act, 1949, we request you to kindly let us know whether there is any professional or other reason for which we should not accept this appointment.
+
+We would be grateful for your early reply. If we do not hear from you within a reasonable time, we shall presume that you have no objection to our accepting the appointment.
+
+With regards,
+
+Yours faithfully,`},
+  {k: "noc_reply", cat: "Audit", n: "No-objection reply to incoming auditor", to: "field:incoming", sign: "firm", d: "Reply to the new auditor's communication",
+    f: [["incoming", "Incoming auditor (name and address)", "area", "M/s ___________, Chartered Accountants\nAddress"], ["their_date", "Date of their letter", "date"], ["dues", "Our undisputed fees outstanding", "text", "Nil"]],
+    sub: "Your proposed appointment as auditors of {client}",
+    body: `Dear Sir/Madam,
+
+We acknowledge receipt of your letter dated {their_date} regarding your proposed appointment as auditors of {client}.
+
+We confirm that we are not aware of any professional or other reason for which you should not accept the appointment. Undisputed audit fees due to us from the entity as on date: {dues}.
+
+We wish you the best for the assignment.
+
+Yours faithfully,`},
+  {k: "mrl", cat: "Audit", n: "Management representation letter (SA 580) – draft", head: "client", to: "firm", sign: "client", d: "On the client's letterhead, addressed to you",
+    f: [["fy", "Financial year", "fy", prevFY]],
+    sub: "Management representations for the audit of financial statements for the year ended 31 March {fy_end}",
+    body: `Dear Sirs,
+
+This representation letter is provided in connection with your audit of the financial statements of {client} for the year ended 31 March {fy_end}, for the purpose of expressing an opinion as to whether the financial statements give a true and fair view in accordance with the applicable financial reporting framework. We confirm, to the best of our knowledge and belief, the following representations:
+
+## Financial statements
+1. We have fulfilled our responsibilities for the preparation of the financial statements in accordance with the applicable financial reporting framework; in particular, the financial statements give a true and fair view.
+2. Significant assumptions used in making accounting estimates, including those measured at fair value, are reasonable.
+3. Related party relationships and transactions have been appropriately accounted for and disclosed.
+4. All events subsequent to the date of the financial statements that require adjustment or disclosure have been adjusted or disclosed.
+5. The effects of uncorrected misstatements, if any, are immaterial, both individually and in the aggregate, to the financial statements as a whole.
+
+## Information provided
+6. We have provided you with access to all information of which we are aware that is relevant to the preparation of the financial statements, such as records, documentation and other matters, and unrestricted access to persons from whom you determined it necessary to obtain audit evidence.
+7. All transactions have been recorded in the accounting records and are reflected in the financial statements.
+8. We have disclosed to you the results of our assessment of the risk that the financial statements may be materially misstated as a result of fraud, and all information in relation to fraud or suspected fraud that we are aware of.
+9. We have disclosed all known instances of non-compliance or suspected non-compliance with laws and regulations, and all known actual or possible litigation and claims, whose effects should be considered when preparing the financial statements.
+10. The Company has satisfactory title to all assets, and there are no liens or encumbrances on the assets except as disclosed.
+11. Dues to micro and small enterprises, contingent liabilities and capital commitments have been completely disclosed.
+
+Yours faithfully,`},
+  {k: "authority", cat: "Tax & GST", n: "Authority letter (client authorises you)", head: "client", to: "field:office", sign: "client", d: "To appear before GST / income tax / MCA / bank",
+    f: [["office", "Addressed to", "area", "The Assistant Commissioner / Deputy Commissioner\nState Tax / Income-tax, Circle ______"], ["matter", "Matter", "text", "proceedings for the financial year " + "{fy}"], ["fy", "Financial year", "fy", prevFY]],
+    sub: "Authority letter",
+    body: `Respected Sir/Madam,
+
+We, {client} (PAN {client_pan}{gstin_text}), hereby authorise {signatory}, {designation} of {firm}, Chartered Accountants (Membership No. {memno}), to appear before you, make submissions, file replies and documents, and receive notices and orders on our behalf in connection with {matter}.
+
+The acts done by the authorised representative in this matter shall be binding on us.
+
+Thanking you,
+
+Yours faithfully,`},
+  {k: "docs_itr", cat: "Tax & GST", n: "Document checklist – income tax return", to: "client", sign: "firm", d: "List of documents needed from the client",
+    f: [["ay", "Assessment year", "ay", () => fyLabel(fyOf(todayStr()))], ["by", "Please share by", "date"],
+      ["list", "Documents (one per line)", "area", "- Form 16 / salary certificates and Form 16A / TDS certificates\n- Form 26AS, Annual Information Statement (AIS) and TIS\n- Statements of all bank accounts for the year and interest certificates\n- Capital gains statements from brokers and mutual funds; purchase and sale deeds for property\n- Rent received details and municipal tax paid; home loan interest certificate\n- Proofs for deductions (80C, 80D, 80G, etc.), if opting for the old regime\n- Details of foreign assets and income, if any\n- Business / professional books, if applicable"]],
+    sub: "Documents required for filing your income tax return for assessment year {ay}",
+    body: `Dear {contact},
+
+To prepare and file your income tax return for assessment year {ay}, we request you to kindly share the following documents and details:
+
+{list}
+
+Kindly send them by {by}, so that the return can be filed well before the due date and without interest or late fee. You may share scanned copies by email or WhatsApp, or upload them to your shared folder.
+
+Please feel free to call us for any clarification.
+
+Yours sincerely,`},
+  {k: "balconf", cat: "Audit", n: "Balance confirmation request (debtor / creditor)", head: "client", to: "field:party", sign: "client", d: "On the client's letterhead · reply goes to you",
+    f: [["party", "Party (name and address)", "area", "M/s ___________\nAddress"], ["as_on", "Balance as on", "date", () => fyEnd(fyOf(todayStr()) - 1)], ["balance", "Balance (₹)", "money"], ["side", "In our books it is", "select", "receivable from you", ["receivable from you", "payable to you"]]],
+    sub: "Confirmation of balance as on {as_on}",
+    body: `Dear Sir/Madam,
+
+Our auditors, {firm}, Chartered Accountants, are conducting the audit of our accounts. As per our books of account, the balance of {balance_text} is {side} as on {as_on}.
+
+Kindly confirm the above balance directly to our auditors by email at {firm_email}, or by post at the address below. If the balance in your books differs, please send a statement of account showing the details of the difference.
+
+Auditors' address: {firm_addr}
+
+Your early response will be appreciated.
+
+Yours faithfully,`},
+  {k: "bankconf", cat: "Audit", n: "Bank balance confirmation request (SA 505)", to: "field:bank", sign: "firm", d: "To the client's bank, with client authorisation",
+    f: [["bank", "Bank (name and branch address)", "area", "The Branch Manager\n___________ Bank\nBranch address"], ["as_on", "As on", "date", () => fyEnd(fyOf(todayStr()) - 1)]],
+    sub: "Request for confirmation of balances and other information – {client}",
+    body: `Dear Sir/Madam,
+
+We are the statutory auditors of {client}, which maintains accounts with your branch. For the purpose of our audit, we request you to confirm directly to us the following information as on {as_on}:
+
+1. Balances in all current, savings, cash credit and overdraft accounts, with account numbers.
+2. Fixed and other deposits, with rates of interest, dates of maturity and lien, if any.
+3. Loans and advances, with sanctioned limits, outstanding balances and securities held.
+4. Bank guarantees, letters of credit, bills discounted and other contingent liabilities.
+5. Any other accounts, facilities or securities held by you on behalf of the customer.
+
+The customer's authorisation for this request is enclosed. Kindly send your reply directly to us at {firm_email} or at the address on this letterhead. We shall be glad to bear any charges for this confirmation.
+
+Yours faithfully,`},
+  {k: "feereminder", cat: "Client service", n: "Outstanding fees – formal reminder", to: "client", sign: "firm", d: "Statement of dues with bank / UPI details",
+    f: [["pay_by", "Please pay by", "date"]],
+    sub: "Outstanding professional fees",
+    body: `Dear {contact},
+
+As per our records, an amount of {due} is outstanding towards our professional fees as on {date}, as detailed below:
+
+{details_table}
+
+We request you to kindly arrange the payment by {pay_by}. If you have already made the payment, please share the transaction details so that we may update our records.
+
+Payment details:
+{bank}
+
+Thanking you,
+
+Yours faithfully,`},
+  {k: "resign", cat: "Audit", n: "Resignation as statutory auditor (section 140(2))", to: "board", sign: "firm", d: "With reasons; ADT-3 follow-up",
+    f: [["effective", "Effective from", "date"], ["reason", "Reasons for resignation", "area", "Due to pre-occupation with other professional assignments, we are unable to devote adequate time to the audit of the Company."]],
+    sub: "Resignation as statutory auditors of {client}",
+    body: `Dear Sirs,
+
+We hereby tender our resignation as statutory auditors of {client} ("the Company") with effect from {effective}.
+
+Reasons for resignation: {reason}
+
+We confirm that there are no other facts or circumstances that, in our opinion, need to be brought to the notice of the members or creditors of the Company. As required by section 140(2) of the Companies Act, 2013, we shall file the statement in Form ADT-3 with the Registrar of Companies within thirty days of this resignation.
+
+We thank the Board and the management for the co-operation extended to us during our tenure.
+
+Yours faithfully,`},
+  {k: "networth", cat: "Certificates", n: "Net worth certificate", to: "twimc", title: "Net Worth Certificate", sign: "firm", udin: true, d: "For visa, tender, bank or loan purposes",
+    f: [["as_on", "As on", "date", todayStr], ["purpose", "Purpose", "text", "submission to the Embassy for visa purposes"],
+      ["table", "Statement (Particulars | Amount)", "area", "| Particulars | Amount (₹) |\n| Immovable properties (at market value) | |\n| Investments – shares, mutual funds and deposits | |\n| Balances in bank accounts | |\n| Gold, jewellery and other movable assets | |\n| Total assets (A) | |\n| Less: Loans and other liabilities (B) | |\n| Net worth (A – B) | |"], ["udin", "UDIN", "text", ""]],
+    sub: "",
+    body: `This is to certify that we have examined the documents and records produced before us by {client} (PAN {client_pan}), residing at {client_addr_line}, for the purpose of computing the net worth as on {as_on}. On the basis of our examination and the information and explanations given to us, the net worth as on {as_on} is as under:
+
+{table}
+
+## Management's responsibility
+The preparation of the above statement and the valuation of the assets is the responsibility of the applicant, including maintaining the supporting documents.
+
+## Our responsibility
+Our responsibility is to verify the statement on the basis of the documents produced and information provided, in accordance with the Guidance Note on Reports or Certificates for Special Purposes issued by the Institute of Chartered Accountants of India. Values of immovable properties and jewellery are as declared by the applicant and supported by the documents produced.
+
+## Restriction on use
+This certificate is issued at the specific request of the applicant for {purpose} and should not be used for any other purpose.`},
+  {k: "turnover", cat: "Certificates", n: "Turnover certificate", to: "twimc", title: "Turnover Certificate", sign: "firm", udin: true, d: "For tenders, banks and registrations",
+    f: [["fy", "Financial year", "fy", prevFY], ["turnover", "Turnover (₹)", "money"], ["basis", "Based on", "select", "audited financial statements", ["audited financial statements", "books of account", "GST returns filed", "audited financial statements and GST returns"]], ["purpose", "Purpose", "text", "submission with tender documents"], ["udin", "UDIN", "text", ""]],
+    sub: "",
+    body: `This is to certify that, on the basis of the {basis} and other records produced before us by {client} (PAN {client_pan}{gstin_text}), having its office at {client_addr_line}, the turnover for the financial year {fy} (1 April {fy_start} to 31 March {fy_end}) is {turnover_text}.
+
+The responsibility for the accuracy and completeness of the records produced is that of the management of the entity. Our responsibility is to verify the above figure with the records produced, in accordance with the Guidance Note on Reports or Certificates for Special Purposes issued by the Institute of Chartered Accountants of India.
+
+This certificate is issued at the specific request of the entity for {purpose} and should not be used for any other purpose.`},
+  {k: "welcome", cat: "Client service", n: "Welcome / onboarding letter", to: "client", sign: "firm", d: "Team, documents, portal and payment details",
+    f: [["services", "Services we will handle", "area", "- GST returns and reconciliations\n- Income tax return and advance tax\n- Accounting and MIS"], ["person", "Your point of contact", "text", () => ST().signatory + (ST().phone ? ", " + ST().phone : "")]],
+    sub: "Welcome to {firm}",
+    body: `Dear {contact},
+
+Thank you for choosing {firm}. We are delighted to have {client} as our client and look forward to a long association.
+
+## Services we will handle for you
+{services}
+
+## How we will work together
+1. Your point of contact will be {person}. You can reach us on {firm_phone} or {firm_email}.
+2. We will send you reminders of upcoming due dates and the documents required, well in advance.
+3. Please share data and documents by email or WhatsApp, or through your secure folder.{portal_text}
+
+## Payment
+Our invoices can be paid by bank transfer or UPI:
+{bank}
+
+We thank you for your trust.
+
+Yours sincerely,`},
+  {k: "general", cat: "Client service", n: "Blank letter on letterhead", to: "client", sign: "firm", d: "Any other correspondence",
+    f: [], sub: "", body: `Dear {contact},
+
+
+
+Yours faithfully,`},
+];
+const ltDef = k => LT.find(t => t.k === k);
+const lPrefix = () => ((ST().firm || "L").match(/\b[A-Z]/g) || ["L"]).join("").slice(0, 4);
+function nextLetterRef(date) { const fy = fyOf(date || todayStr()); const n = D().letters.filter(l => fyOf(l.date) === fy).length + 1; return lPrefix() + "/" + fyLabel(fy) + "/L-" + String(n).padStart(3, "0"); }
+function ltVars(st) { const s = ST(), c = led(st.client) || {}, def = ltDef(st.tpl) || {f: []}; const f = st.f || {};
+  const fy = f.fy || prevFY(); const fy0 = +fy.slice(0, 4); const addr = [c.address, [c.city, c.stateCode ? stateName(c.stateCode) : ""].filter(Boolean).join(", ")].filter(Boolean).join(", ");
+  const cd = clientDues().get(st.client) || {bal: 0, debits: []};
+  const v = {client: c.name || "________", contact: c.contact ? c.contact : "Sir/Madam", client_pan: c.pan || "__________", client_gstin: c.gstin || "__________", gstin_text: c.gstin ? ", GSTIN " + c.gstin : "",
+    client_addr_line: addr || "________", fy, fy_start: String(fy0), fy_end: String(fy0 + 1), ay: f.ay || fyLabel(fy0 + 1), date: dLong(st.date || todayStr()),
+    firm: s.firm, signatory: s.signatory, designation: s.designation, memno: s.memNo || "______", frn: s.frn || "__________", firm_email: s.email || "________", firm_phone: s.phone || "________",
+    firm_addr: [s.addr1, s.addr2].filter(Boolean).join(", "), place: ((s.addr1 || "").split(",")[0] || "").trim(), bank: bankText() || "(bank details)", due: money(Math.max(0, cd.bal)),
+    details_table: "| Particulars | Date | Amount (₹) |\n" + (cd.debits.filter(d => d.due > 0).map(d => `| ${d.kind === "invoice" ? "Invoice " + d.v.no : d.kind === "opening" ? "Previous balance" : "Paid on your behalf"} | ${dmy(d.date)} | ${amt(d.due)} |`).join("\n") || "| No dues | | |") + `\n| Total outstanding | | ${amt(Math.max(0, cd.bal))} |`,
+    portal_text: c.portal && c.portal.on && typeof portalLink === "function" ? "\n4. You can see your invoices, account statement and documents any time on your client portal: " + portalLink(c) + " (the password will be shared separately)." : ""};
+  for (const [k, , type] of def.f) { let val = f[k]; if (val == null || val === "") val = ""; if (type === "date") val = val ? dLong(val) : "________"; v[k] = type === "money" ? (val ? money(val) : "₹________") : (val === "" ? (v[k] || "________") : val);
+    if (type === "money") v[k + "_text"] = val ? money(val) + " (" + inWords(+val) + ")" + (["fees"].includes(k) ? " plus GST as applicable" : "") : "₹________ plus GST as applicable"; }
+  if (def.f.some(x => x[0] === "fees")) v.fees_text = v.fees_text || "₹________ plus GST as applicable";
+  for (const [k, , type] of def.f) if (type === "area" || type === "text") v[k] = fillTpl(v[k], v);
+  return v; }
+function ltDefaults(def) { const f = {}; for (const [k, , type, d] of def.f) f[k] = typeof d === "function" ? d() : d != null ? d : ""; return f; }
+function ltAddressee(st) { const def = ltDef(st.tpl); const c = led(st.client) || {}; const s = ST();
+  const caddr = [c.address, [c.city, c.stateCode ? stateName(c.stateCode) : ""].filter(Boolean).join(", ")].filter(Boolean);
+  if (!def) return ""; if (def.to === "twimc") return ""; if (def.to === "firm") return [s.firm, "Chartered Accountants", s.addr1, s.addr2].filter(Boolean).join("\n");
+  if (def.to === "board") return ["The Board of Directors", c.name || "", ...caddr].filter(Boolean).join("\n");
+  if (def.to.startsWith("field:")) return (st.f || {})[def.to.slice(6)] || "";
+  return [c.name || "", c.contact && c.contact !== c.name ? "Kind attention: " + c.contact : "", ...caddr].filter(Boolean).join("\n"); }
+function letterModel(st) { const def = ltDef(st.tpl) || LT[LT.length - 1]; const c = led(st.client) || {}; const s = ST(); const vars = ltVars(st);
+  const subject = st.sub != null ? st.sub : fillTpl(def.sub, vars); const body = st.body != null ? st.body : fillTpl(def.body, vars);
+  const to = (st.to != null ? st.to : ltAddressee(st)).split("\n").map(x => x.trim()).filter(Boolean);
+  const ref = def.head === "client" ? "" : (st.ref || nextLetterRef(st.date)); const date = st.date || todayStr();
+  return {def, head: def.head || "firm", sign: def.sign || "firm", accept: !!def.accept, acceptText: def.acc ? fillTpl(def.acc, vars) : "", title: def.title || "", twimc: def.to === "twimc",
+    ref, date, to, subject, body, clientName: c.name || (to[0] || ""), udin: def.udin ? ((st.f || {}).udin || "") : null, place: vars.place,
+    auth: authFor("LTR", [ref || def.k, date, c.name || to[0] || "", subject], [(def.title || "Letter") + (ref ? " " + ref : "") + " dated " + dmy(date), "To " + (c.name || to[0] || ""), subject || def.n])}; }
+function parseBody(t) { const out = []; let para = [], tbl = null;
+  const flushP = () => { if (para.length) { out.push({t: "p", x: para.join("\n")}); para = []; } }; const flushT = () => { if (tbl) { out.push({t: "tbl", rows: tbl}); tbl = null; } };
+  for (const raw of String(t || "").replace(/\r/g, "").split("\n")) { const s_ = raw.trim();
+    if (!s_) { flushP(); flushT(); continue; }
+    if (s_.startsWith("|")) { flushP(); (tbl = tbl || []).push(s_.replace(/^\|/, "").replace(/\|$/, "").split("|").map(x => x.trim())); continue; } flushT();
+    if (s_.startsWith("## ")) { flushP(); out.push({t: "h", x: s_.slice(3)}); continue; }
+    const m = s_.match(/^(\d{1,2}[.)]|\([a-z0-9]{1,4}\)|[a-h][.)])\s+(.*)$/i); if (m) { flushP(); out.push({t: "li", n: m[1], x: m[2]}); continue; }
+    if (/^[-•]\s+/.test(s_)) { flushP(); out.push({t: "li", n: "•", x: s_.replace(/^[-•]\s+/, "")}); continue; }
+    para.push(s_); }
+  flushP(); flushT(); return out; }
+const tblBold = (r, i) => i === 0 || /^(total|net|less)/i.test(r[0] || "");
+
+// ---------- HTML ----------
+const LTR_CSS = `.inv.ltr{font-size:10.5pt;line-height:1.5}.ltr .refrow{display:flex;justify-content:space-between;margin:6mm 0 5mm;font-size:10pt}.ltr .ttl{text-align:center;font-weight:700;letter-spacing:.12em;color:${NAVY};font-size:12.5pt;margin:2mm 0 5mm}
+.ltr .to{margin-bottom:4mm}.ltr .to div:first-child+div{font-weight:700}.ltr .subj{font-weight:700;margin:0 0 4mm}.ltr p{margin:0 0 3mm;white-space:pre-line;text-align:justify}.ltr h4{margin:4mm 0 1.5mm;color:${NAVY};font-size:10pt;letter-spacing:.06em;text-transform:uppercase}
+.ltr .li{display:grid;grid-template-columns:8mm 1fr;margin:0 0 1.6mm;text-align:justify}.ltr table.lt{width:100%;border-collapse:collapse;margin:1mm 0 4mm}.ltr table.lt td{border:.3mm solid ${LINE};padding:1.6mm 2.4mm;font-size:10pt}.ltr table.lt tr.b td{font-weight:700;background:${LIGHT}}.ltr table.lt td.r{text-align:right}
+.ltr .lfoot{display:flex;justify-content:space-between;align-items:flex-start;gap:6mm;margin-top:6mm}.ltr .acc{margin-top:8mm;border-top:.3mm solid ${LINE};padding-top:4mm;font-size:10pt}.ltr .acc .l{font-size:8pt;font-weight:700;letter-spacing:.14em;color:${GOLD}}
+.ltr .lines{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:12mm}.ltr .ph{color:${MUTED};font-style:italic;text-align:center;font-size:9pt;padding-top:6mm}.ltr .csign{margin-top:8mm}.ltr .csign .sp{height:16mm}`;
+function letterHTML(m) { const s = ST(), e = esc; const blocks = parseBody(m.body);
+  const bodyH = blocks.map(b => b.t === "h" ? `<h4>${e(b.x)}</h4>` : b.t === "p" ? `<p>${e(b.x)}</p>` : b.t === "li" ? `<div class="li"><span>${e(b.n)}</span><span>${e(b.x)}</span></div>`
+    : `<table class="lt"><tbody>${b.rows.map((r, i) => `<tr class="${tblBold(r, i) ? "b" : ""}">${r.map((c, j) => `<td class="${j > 0 && j === r.length - 1 ? "r" : ""}">${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`).join("");
+  const sign = m.sign === "firm" ? `<div class="lfoot">${authHTML(m.auth)}${signHTML(s, m.auth)}</div>${m.udin != null ? `<div class="refrow" style="margin-top:3mm"><span>UDIN: ${e(m.udin || "____________________")}</span><span>Place: ${e(m.place)}</span></div>` : ""}`
+    : m.sign === "client" ? `<div class="csign"><b>For ${e(m.clientName)}</b><div class="sp"></div><div>Authorised Signatory</div><div class="muted">Name &amp; designation: ____________________</div></div>` : "";
+  return `<div class="inv ltr">${m.head === "firm" ? letterheadHTML(s, firmIds()) : `<div class="ph">[ To be printed on the letterhead of ${e(m.clientName)} ]</div>`}
+    <div class="refrow"><span>${m.ref ? "Ref: " + e(m.ref) : ""}</span><span>Date: ${e(dLong(m.date))}</span></div>
+    ${m.title ? `<div class="ttl">${e(m.title.toUpperCase())}</div>` : ""}${m.twimc ? `<div class="subj" style="text-align:center">TO WHOMSOEVER IT MAY CONCERN</div>` : ""}
+    ${m.to.length ? `<div class="to"><div>To,</div>${m.to.map(x => `<div>${e(x)}</div>`).join("")}</div>` : ""}${m.subject ? `<div class="subj">Subject: ${e(m.subject)}</div>` : ""}${bodyH}${sign}
+    ${m.accept ? `<div class="acc"><div class="l">ACCEPTANCE</div><p>${e(m.acceptText)}</p><b>For ${e(m.clientName)}</b><div class="lines"><span>Signature: ____________________</span><span>Date: ______________</span><span>Name &amp; designation: ____________________</span><span>Place: ______________</span></div></div>` : ""}</div>`; }
+const letterFileBase = m => ((m.title || m.def.n.split(" – ")[0].replace(/\(.*\)/, "").trim()) + " " + (m.clientName || "") + (m.ref ? " " + m.ref.replace(/\//g, "-") : "")).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
+
+// ---------- PDF / PNG ----------
+function drawLetter(R, m) { const s = ST(), W = 210, L = 16, RX = 194, BOT = 276, wrap = (t, w, sz, b) => wrapText(R, t, w, sz, b); let y;
+  if (m.head === "firm") y = drawLetterhead(R, s, W, firmIds()) + 8; else { y = 18; R.text("[ To be printed on the letterhead of " + m.clientName + " ]", W / 2, y, {size: 8.5, color: MUTED, align: "center"}); y += 10; }
+  const page = need => { if (y + need > BOT) { R.newPage(); y = 20; } };
+  if (m.ref) R.text("Ref: " + m.ref, L, y, {size: 10}); R.text("Date: " + dLong(m.date), RX, y, {size: 10, align: "right"}); y += 9;
+  if (m.title) { R.text(m.title.toUpperCase().split("").join(" "), W / 2, y, {size: 12, bold: true, color: NAVY, align: "center"}); y += 7; }
+  if (m.twimc) { R.text("TO WHOMSOEVER IT MAY CONCERN", W / 2, y, {size: 10, bold: true, align: "center"}); y += 8; }
+  if (m.to.length) { R.text("To,", L, y, {size: 10.5}); y += 5; m.to.forEach((ln, i) => { for (const w of wrap(ln, 120, 10.5, i === 0)) { R.text(w, L, y, {size: 10.5, bold: i === 0}); y += 4.9; } }); y += 3; }
+  if (m.subject) { for (const ln of wrap("Subject: " + m.subject, RX - L, 10.5, true)) { R.text(ln, L, y, {size: 10.5, bold: true}); y += 5; } y += 3; }
+  for (const b of parseBody(m.body)) {
+    if (b.t === "h") { page(12); y += 1.5; R.text(b.x.toUpperCase(), L, y, {size: 9.5, bold: true, color: NAVY}); y += 5.6; continue; }
+    if (b.t === "p") { for (const ln of wrap(b.x, RX - L, 10.5)) { page(5); R.text(ln, L, y, {size: 10.5}); y += 5; } y += 2.8; continue; }
+    if (b.t === "li") { wrap(b.x, RX - L - 9, 10.5).forEach((ln, j) => { page(5); if (!j) R.text(b.n, L + 1, y, {size: 10.5}); R.text(ln, L + 9, y, {size: 10.5}); y += 5; }); y += 1.4; continue; }
+    if (b.t === "tbl") { const n = Math.max(...b.rows.map(r => r.length)); const tw = RX - L; const ws = n === 2 ? [tw - 46, 46] : n === 3 ? [tw - 80, 36, 44] : Array(n).fill(tw / n);
+      b.rows.forEach((r, i) => { const bold = tblBold(r, i); const cells = ws.map((w, j) => wrap(r[j] || "", w - 4, 10, bold)); const h = Math.max(...cells.map(c => c.length)) * 4.6 + 3.2; page(h);
+        if (bold) R.rect(L, y, tw, h, {fill: LIGHT}); let x = L; cells.forEach((c, j) => { const right = j > 0 && j === n - 1; c.forEach((ln, k) => R.text(ln, right ? x + ws[j] - 2.4 : x + 2.4, y + 4.6 + k * 4.6, {size: 10, bold, align: right ? "right" : "left"})); if (j) R.line(x, y, x, y + h, {color: LINE, w: 0.25}); x += ws[j]; });
+        R.rect(L, y, tw, h, {stroke: LINE, w: 0.3}); y += h; }); y += 4; continue; } }
+  if (m.sign === "firm") { page(m.udin != null ? 54 : 44); y += 2; y = drawAuthSign(R, s, m.auth, y, RX, true, L) + 5; if (m.udin != null) { page(8); R.text("UDIN: " + (m.udin || "______________________"), L, y, {size: 9.5}); R.text("Place: " + m.place, RX, y, {size: 9.5, align: "right"}); y += 6; } }
+  else if (m.sign === "client") { page(34); y += 4; R.text("For " + m.clientName, L, y, {size: 10.5, bold: true}); y += 20; R.text("Authorised Signatory", L, y, {size: 10.5}); y += 5; R.text("Name & designation: ________________________", L, y, {size: 9.5, color: MUTED}); y += 6; }
+  if (m.accept) { page(46); y += 4; R.line(L, y, RX, y, {color: LINE, w: 0.3}); y += 6; R.text("A C C E P T A N C E", L, y, {size: 8, bold: true, color: GOLD}); y += 5.5;
+    for (const ln of wrap(m.acceptText, RX - L, 10)) { R.text(ln, L, y, {size: 10}); y += 4.8; } y += 3; R.text("For " + m.clientName, L, y, {size: 10, bold: true}); y += 16;
+    R.text("Signature: ____________________", L, y, {size: 10}); R.text("Date: ______________", RX, y, {size: 10, align: "right"}); y += 6.5; R.text("Name & designation: ____________________", L, y, {size: 10}); R.text("Place: ______________", RX, y, {size: 10, align: "right"}); }
+  R.footer((i, n) => { R.line(L, 286, RX, 286, {color: LINE, w: 0.25}); R.text([m.ref, m.head === "firm" ? s.firm : m.clientName, m.head === "firm" ? "Verification code " + m.auth.code : "", n > 1 ? "Page " + i + " of " + n : ""].filter(Boolean).join("  ·  "), W / 2, 290, {size: 7, color: MUTED, align: "center"}); }); }
+async function letterPDF(m) { await needLib("pdf"); const doc = new window.jspdf.jsPDF({unit: "mm", format: "a4"}); doc.setProperties({title: letterFileBase(m), author: ST().firm, creator: ST().firm}); drawLetter(pdfR(doc), m); return doc.output("blob"); }
+
+// ---------- DOCX ----------
+function letterDOCX(m) { const s = ST(), N = "1F3864", Gd = "9A7B1E", Mu = "555B66", X = t => esc(t); const media = [];
+  const r = (t, o = {}) => `<w:r><w:rPr><w:rFonts w:ascii="${o.serif ? "Times New Roman" : "Calibri"}" w:hAnsi="${o.serif ? "Times New Roman" : "Calibri"}" w:cs="Calibri"/>${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}${o.sp ? `<w:spacing w:val="${o.sp}"/>` : ""}<w:sz w:val="${Math.round((o.size || 10.5) * 2)}"/></w:rPr><w:t xml:space="preserve">${X(t)}</w:t></w:r>`;
+  const rl = (t, o) => String(t).split("\n").map((x, i) => (i ? "<w:r><w:br/></w:r>" : "") + r(x, o)).join("");
+  const p = (runs, o = {}) => `<w:p><w:pPr>${o.keep ? "<w:keepNext/>" : ""}${o.bb ? `<w:pBdr><w:bottom w:val="single" w:sz="12" w:space="4" w:color="${N}"/></w:pBdr>` : ""}${o.tb ? `<w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="C9CED8"/></w:pBdr>` : ""}<w:spacing w:before="${o.before || 0}" w:after="${o.after || 0}" w:line="276" w:lineRule="auto"/>${o.ind ? `<w:ind w:left="${o.ind}" w:hanging="${o.hang || 0}"/>` : ""}${o.align ? `<w:jc w:val="${o.align}"/>` : ""}${o.tab ? `<w:tabs><w:tab w:val="right" w:pos="${o.tab}"/></w:tabs>` : ""}</w:pPr>${runs}</w:p>`;
+  const img = (src, wmm, hmm) => { if (!src) return ""; const id = media.length + 1; media.push({name: "img" + id + ".png", data: dataUrlBytes(src)}); const cx = Math.round(wmm * 36000), cy = Math.round(hmm * 36000);
+    return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Image ${id}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rImg${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`; };
+  const bord = c => `<w:tcBorders><w:top w:val="single" w:sz="4" w:color="${c}"/><w:left w:val="single" w:sz="4" w:color="${c}"/><w:bottom w:val="single" w:sz="4" w:color="${c}"/><w:right w:val="single" w:sz="4" w:color="${c}"/></w:tcBorders>`;
+  const cell = (inner, w, o = {}) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.border ? bord("C9CED8") : ""}${o.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shade}"/>` : ""}<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar></w:tcPr>${inner || "<w:p/>"}</w:tc>`;
+  const table = (rows, widths) => `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.map(rw => `<w:tr>${rw}</w:tr>`).join("")}</w:tbl><w:p/>`;
+  const TW = 9638; let body = "";
+  if (m.head === "firm") { body += table([cell(p(r(s.firm, {serif: 1, b: 1, size: 20, color: N})) + p(r((s.tagline || "").toUpperCase(), {b: 1, size: 8.5, color: Gd, sp: 40})) + p(r([s.addr1, s.addr2].filter(Boolean).join("  |  "), {size: 8.5, color: Mu})) + ((s.phone || s.email || s.website) ? p(r([s.phone, s.email, s.website].filter(Boolean).join("  ·  "), {size: 8.5, color: Mu})) : ""), 6438)
+      + cell(firmIds().map(f => p(r(f[0] + ": ", {b: 1, size: 8.5, color: N}) + r(f[1], {size: 8.5}), {align: "right"})).join("") || "<w:p/>", 3200)], [6438, 3200]).replace(/<w:p\/>$/, ""); body += p("", {bb: 1, after: 200}); }
+  else body += p(r("[ To be printed on the letterhead of " + m.clientName + " ]", {i: 1, size: 9, color: Mu}), {align: "center", after: 300});
+  body += p(r(m.ref ? "Ref: " + m.ref : "") + "<w:r><w:tab/></w:r>" + r("Date: " + dLong(m.date)), {tab: TW, after: 240});
+  if (m.title) body += p(r(m.title.toUpperCase(), {b: 1, size: 12.5, color: N, sp: 40}), {align: "center", after: 160});
+  if (m.twimc) body += p(r("TO WHOMSOEVER IT MAY CONCERN", {b: 1}), {align: "center", after: 200});
+  if (m.to.length) { body += p(r("To,")); m.to.forEach((x, i) => { body += p(r(x, {b: i === 0})); }); body += p("", {after: 120}); }
+  if (m.subject) body += p(r("Subject: " + m.subject, {b: 1}), {after: 200});
+  for (const b of parseBody(m.body)) {
+    if (b.t === "h") body += p(r(b.x.toUpperCase(), {b: 1, size: 9.5, color: N}), {before: 120, after: 60, keep: 1});
+    else if (b.t === "p") body += p(rl(b.x), {after: 140, align: "both"});
+    else if (b.t === "li") body += p(r(b.n) + "<w:r><w:tab/></w:r>" + r(b.x), {ind: 500, hang: 500, after: 80, align: "both"});
+    else { const n = Math.max(...b.rows.map(x => x.length)); const ws = n === 2 ? [TW - 2600, 2600] : n === 3 ? [TW - 4400, 2000, 2400] : Array(n).fill(Math.floor(TW / n));
+      body += table(b.rows.map((rw, i) => ws.map((w, j) => cell(p(r(rw[j] || "", {b: tblBold(rw, i), size: 10}), {align: j > 0 && j === n - 1 ? "right" : "left"}), w, {border: 1, shade: tblBold(rw, i) ? "EEF1F7" : ""})).join("")), ws); } }
+  const a = m.auth;
+  if (m.sign === "firm") { const authC = (a.qr ? p(img(a.qr, 22, 22)) : "") + p(r(a.code, {b: 1, size: 8, color: N})) + p(r("Verification code", {size: 6.5, color: Mu}));
+    const signC = p(r("For ", {size: 10}) + r(s.firm, {b: 1, size: 10}), {align: "right"}) + p(r(s.tagline || "", {size: 8.5, color: Mu}), {align: "right"}) + p((a.seal ? img(a.seal, 21, 21) : "") + (a.sign ? img(a.sign, 36, 12) : ""), {align: "right"}) + (a.seal || a.sign ? "" : p("", {after: 700}))
+      + p(r(s.signatory || "", {b: 1}), {align: "right"}) + p(r([s.designation, s.memNo ? "M. No. " + s.memNo : ""].filter(Boolean).join(" · "), {size: 8.5, color: Mu}), {align: "right"}) + p(r("AUTHORISED SIGNATORY", {size: 7, color: Mu}), {align: "right"});
+    body += table([cell(authC, 3000) + cell(signC, TW - 3000)], [3000, TW - 3000]);
+    if (m.udin != null) body += p(r("UDIN: " + (m.udin || "______________________")) + "<w:r><w:tab/></w:r>" + r("Place: " + m.place), {tab: TW, before: 120}); }
+  else if (m.sign === "client") body += p(r("For " + m.clientName, {b: 1}), {before: 200, after: 900}) + p(r("Authorised Signatory")) + p(r("Name & designation: ________________________", {size: 9.5, color: Mu}));
+  if (m.accept) body += p(r("ACCEPTANCE", {b: 1, size: 8, color: Gd, sp: 60}), {tb: 1, before: 360, after: 80}) + p(r(m.acceptText), {after: 160}) + p(r("For " + m.clientName, {b: 1}), {after: 700})
+    + p(r("Signature: ____________________") + "<w:r><w:tab/></w:r>" + r("Date: ______________"), {tab: TW, after: 160}) + p(r("Name & designation: ____________________") + "<w:r><w:tab/></w:r>" + r("Place: ______________"), {tab: TW});
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="850" w:right="1134" w:bottom="900" w:left="1134" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  return zipStore([
+    {name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`},
+    {name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`},
+    {name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${X(letterFileBase(m))}</dc:title><dc:creator>${X(s.firm)}</dc:creator></cp:coreProperties>`},
+    {name: "word/_rels/document.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${media.map((x, i) => `<Relationship Id="rImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${x.name}"/>`).join("")}</Relationships>`},
+    {name: "word/document.xml", data: doc}, ...media.map(x => ({name: "word/media/" + x.name, data: x.data}))], "application/vnd.openxmlformats-officedocument.wordprocessingml.document"); }
+
+// ---------- Letters tab ----------
+function ltStart(k, client) { const def = ltDef(k); S.lt = {view: "new", tpl: k, client: client != null ? client : (S.lt && S.lt.client) || "", date: todayStr(), f: ltDefaults(def), sub: null, body: null, to: null, ref: null, id: null}; }
+function vLetters() { const L = S.lt;
+  const seg = `<div class="seg">${[["new", "Write a letter"], ["reg", "Letters issued"]].map(([k, l]) => `<button data-lview="${k}" aria-pressed="${L.view === k}">${l}${k === "reg" && D().letters.length ? " · " + D().letters.length : ""}</button>`).join("")}</div>`;
+  if (L.view === "reg") { const rows = D().letters.slice().sort((a, b) => (b.date + b.at).localeCompare(a.date + a.at));
+    return `<div class="panel"><div class="panel-head">${seg}<span class="small muted">Every letter you download, email or save is kept here with its reference number.</span></div>
+      ${rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Ref</th><th>To</th><th>Letter</th><th class="r"></th></tr></thead><tbody>${rows.map(l => `<tr><td class="num">${dmy(l.date)}</td><td class="num small">${esc(l.ref || "—")}</td><td>${esc(lname(l.client) !== "—" ? lname(l.client) : (l.to || "").split("\n")[0])}</td><td><b>${esc((ltDef(l.tpl) || {n: "Letter"}).n)}</b>${l.sub ? `<div class="meta">${esc(l.sub)}</div>` : ""}</td>
+        <td class="r"><div class="actions" style="justify-content:flex-end"><button class="btn sm" data-lopen="${l.id}">Open</button><button class="btn sm" data-lpdf="${l.id}">PDF</button><button class="btn sm ghost" data-ldel="${l.id}">Delete</button></div></td></tr>`).join("")}</tbody></table></div>`
+        : `<div class="empty"><strong>No letters yet</strong>Choose a template under “Write a letter”.</div>`}</div>`; }
+  const q = (L.q || "").toLowerCase(); const list = LCATS.map(cat => { const items = LT.filter(t => t.cat === cat && (!q || (t.n + " " + t.d).toLowerCase().includes(q))); return items.length ? `<div class="lgroup"><h3>${cat}</h3>${items.map(t => `<button class="lrow" data-lt="${t.k}" aria-current="${L.tpl === t.k}"><span>${esc(t.n)}<span class="meta" style="display:block">${esc(t.d || "")}</span></span></button>`).join("")}</div>` : ""; }).join("");
+  const def = ltDef(L.tpl);
+  const editor = !def ? `<div class="panel"><div class="empty"><strong>Choose a letter</strong>Engagement letters, audit correspondence, certificates and client letters — filled from the client's details, printed on your letterhead with your seal, signature and verification QR.</div></div>` : (() => {
+    const cl = clients(); const fld = ([k, label, type, , opts]) => { const v = (L.f || {})[k] ?? ""; const id = "lf-" + k;
+      if (type === "area") return `<div class="field span2"><label class="lbl" for="${id}">${esc(label)}</label><textarea id="${id}" data-lf="${k}" rows="${Math.min(9, String(v).split("\n").length + 1)}">${esc(v)}</textarea></div>`;
+      if (type === "select") return `<div class="field"><label class="lbl" for="${id}">${esc(label)}</label><select id="${id}" data-lf="${k}">${opts.map(o => opt(o, o, o === v)).join("")}</select></div>`;
+      if (type === "fy" || type === "ay") return `<div class="field"><label class="lbl" for="${id}">${esc(label)}</label><select id="${id}" data-lf="${k}">${fyOpts().map(o => opt(o, o, o === v)).join("")}</select></div>`;
+      return `<div class="field ${type === "text" && String(v).length > 34 ? "span2" : ""}"><label class="lbl" for="${id}">${esc(label)}</label><input id="${id}" data-lf="${k}" ${type === "date" ? 'type="date"' : type === "money" ? 'type="number" step="0.01" min="0"' : ""} value="${esc(v)}"></div>`; };
+    const m = letterModel(L);
+    return `<div class="panel"><div class="panel-head"><div><div class="small muted">${esc(def.cat)}${L.id ? " · editing " + esc(L.ref || "") : ""}</div><h2>${esc(def.n)}</h2></div>
+      <div class="actions"><button class="btn sm" data-lact="pdf">PDF</button><button class="btn sm" data-lact="docx">Word</button>${ONLINE && L.client ? `<button class="btn sm" data-lact="drive">Save to client's Drive</button>` : ""}${L.client ? `<button class="btn sm" data-lact="email">Email</button>` : ""}<button class="btn sm primary" data-lact="save">Save to register</button></div></div>
+      <div class="ltwrap"><div class="formgrid lt-form">
+        <div class="field"><label class="lbl" for="lt-client">Client</label><select id="lt-client"><option value="">— Other addressee —</option>${cl.map(c => opt(c.id, c.name, c.id === L.client)).join("")}</select></div>
+        <div class="field"><label class="lbl" for="lt-date">Date</label><input id="lt-date" type="date" value="${esc(L.date)}"></div>
+        ${def.head === "client" ? "" : `<div class="field span2"><label class="lbl" for="lt-ref">Reference no.</label><input id="lt-ref" value="${esc(L.ref != null ? L.ref : m.ref)}"></div>`}
+        ${def.f.map(fld).join("")}
+        ${def.to === "twimc" ? "" : `<div class="field span2"><label class="lbl" for="lt-to">To</label><textarea id="lt-to" rows="4">${esc(m.to.join("\n"))}</textarea></div>`}
+        ${def.title ? "" : `<div class="field span2"><label class="lbl" for="lt-sub">Subject</label><input id="lt-sub" value="${esc(m.subject)}"></div>`}
+        <div class="field span2"><div class="filters" style="justify-content:space-between"><label class="lbl" for="lt-body" style="margin:0">Letter text</label>${L.body != null ? `<button class="btn sm ghost" data-lact="reset">Reset to template</button>` : `<span class="small muted">Edit freely · “## ” heading · “1. ” list · “| a | b |” table</span>`}</div><textarea id="lt-body" rows="22" spellcheck="true">${esc(m.body)}</textarea></div>
+      </div><div class="ltprev"><div class="inv-stage"><div class="inv-scale" id="lt-scale"><style>${INV_CSS}${LTR_CSS}</style><div id="lt-html">${letterHTML(m)}</div></div></div></div></div></div>`; })();
+  return `<div class="stack"><div class="panel-head" style="margin:0">${seg}</div><div class="split ltsplit"><div class="panel" style="align-self:start"><div class="filters" style="margin-bottom:12px"><input id="lt-q" type="search" placeholder="Find a template" value="${esc(L.q || "")}"></div>${list}</div><div>${editor}</div></div></div>`; }
+function bindLetters() { const L = S.lt; const sc = $("#lt-scale");
+  const fit = () => { if (!sc) return; const w = sc.parentElement.clientWidth, k = Math.min(1, w / 794); sc.style.transform = `scale(${k})`; sc.style.transformOrigin = "top left"; sc.parentElement.style.height = (sc.offsetHeight * k) + "px"; };
+  let t = 0; const prev = () => { clearTimeout(t); t = setTimeout(() => { const h = $("#lt-html"); if (h) { h.innerHTML = letterHTML(letterModel(L)); fit(); } }, 200); };
+  if (sc) setTimeout(fit, 0);
+  const on = (id, ev, fn) => { const el = $("#" + id); if (el) el.addEventListener(ev, fn); };
+  on("lt-q", "input", e => { L.q = e.target.value; dirty(); });
+  on("lt-client", "change", e => { L.client = e.target.value; L.to = null; if (L.body == null) L.sub = null; dirty(); });
+  on("lt-date", "change", e => { L.date = e.target.value || todayStr(); if (!L.id) L.ref = null; dirty(); });
+  on("lt-ref", "input", e => { L.ref = e.target.value; prev(); });
+  on("lt-to", "input", e => { L.to = e.target.value; prev(); });
+  on("lt-sub", "input", e => { L.sub = e.target.value; prev(); });
+  on("lt-body", "input", e => { L.body = e.target.value; prev(); });
+  $$("[data-lf]").forEach(el => el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => { L.f[el.dataset.lf] = el.value;
+    const def = ltDef(L.tpl); const regen = L.body == null; if (def.to.startsWith("field:") && def.to.slice(6) === el.dataset.lf) L.to = null;
+    if (regen || def.to.startsWith("field:")) { const m = letterModel(L); const b = $("#lt-body"); if (b && regen) b.value = m.body; const s_ = $("#lt-sub"); if (s_ && L.sub == null) s_.value = m.subject; const to = $("#lt-to"); if (to && L.to == null) to.value = m.to.join("\n"); }
+    prev(); })); }
+async function letterAction(a, btn) { const L = S.lt; const m = letterModel(L); const name = letterFileBase(m); const c = led(L.client);
+  const save = () => { const rec = {id: L.id || "lt-" + uid(), tpl: L.tpl, client: L.client, date: m.date, ref: m.ref, sub: m.subject || m.title, to: m.to.join("\n"), body: m.body, f: L.f, at: nowIso(), subRaw: L.sub, bodyRaw: L.body, toRaw: L.to};
+    upsert("letters", rec); L.id = rec.id; L.ref = m.ref; commit(); return rec; };
+  const busy = (on) => { if (btn) { btn.disabled = on; } };
+  try { busy(true);
+    if (a === "save") { save(); toast("Saved in the letters register" + (m.ref ? " · " + m.ref : "")); }
+    if (a === "pdf") { save(); await saveFile(name + ".pdf", await letterPDF(m)); }
+    if (a === "docx") { save(); await saveFile(name + ".docx", letterDOCX(m)); }
+    if (a === "drive") { if (!c) return; save(); toast("Saving to Google Drive…"); const sub = ({Engagement: "02 Engagement & Agreements", Audit: "03 Financial Statements & Audit", "Tax & GST": "04 Income Tax", Certificates: "10 Shared with Client"})[m.def.cat] || "10 Shared with Client";
+      const f = await uploadToDrive(c, await letterPDF(m), name + ".pdf", sub); upsert("docs", {id: "d-" + uid(), client: c.id, name, url: f.url, cat: sub, shared: sub === "10 Shared with Client", driveId: f.id, at: nowIso()}); commit(); toast("Saved to " + c.name + " › " + sub); }
+    if (a === "email") { if (!c) return; save(); compose("email", {client: c.id, kind: "letter", subject: (m.subject || m.title || m.def.n) + (m.ref ? " (Ref " + m.ref + ")" : ""),
+      text: "Dear {client},\n\nPlease find attached our letter" + (m.ref ? " ref. " + m.ref : "") + " dated " + dLong(m.date) + (m.subject ? " regarding " + m.subject.charAt(0).toLowerCase() + m.subject.slice(1) : "") + ".\n\n" + (m.accept ? "Kindly sign and return a copy in acceptance.\n\n" : "") + "Warm regards,\n{signatory}\n{firm}",
+      file: {label: "Attach the letter as PDF", make: async () => ({name: name + ".pdf", data: await letterPDF(m)})}}); }
+    if (a === "reset") { L.body = null; L.sub = null; L.to = null; dirty(); }
+  } catch (e) { console.warn(e); toast(a === "drive" ? driveErr(e) : "Couldn't create the file."); } finally { busy(false); } }
+function letterOpen(id) { const l = D().letters.find(x => x.id === id); if (!l) return; S.lt = {view: "new", tpl: l.tpl, client: l.client || "", date: l.date, f: {...ltDefaults(ltDef(l.tpl)), ...(l.f || {})}, sub: l.subRaw != null ? l.subRaw : l.sub, body: l.body, to: l.toRaw != null ? l.toRaw : l.to, ref: l.ref, id: l.id}; dirty(); }
+
+// ================= Safety: activity log, automatic encrypted backups =================
+const LOGGED = {
+  vouchers: v => (VTYPE[v.type] || "Voucher") + " " + (v.type === "sales" ? v.no : vno(v)) + " · " + vParty(v) + " · " + money(vAmount(v)),
+  ledgers: l => (isClient(l) ? "Client · " : "Account · ") + l.name,
+  comp: t => compTitle(t) + " · " + lname(t.client) + " · " + stLabelC(t.status),
+  letters: l => "Letter " + (l.ref || "") + " · " + (l.sub || (ltDef(l.tpl) || {}).n || ""),
+};
+function logAct(coll, rec, act) { const d = D(); if (!d || !d.log || !LOGGED[coll]) return; let what = ""; try { what = LOGGED[coll](rec); } catch { what = rec.name || rec.id; }
+  const last = d.log[d.log.length - 1]; const t = nowIso();
+  if (last && last.ref === rec.id && last.act !== "Deleted" && act !== "Deleted" && Date.now() - Date.parse(last.at) < 8000) { last.what = what; last.updatedAt = t; return; }
+  d.log.push({id: "lg-" + uid(), at: t, act, coll, ref: rec.id, what, dev: ONLINE ? "Online" : "MacBook", updatedAt: t}); if (d.log.length > 3000) d.log.splice(0, d.log.length - 3000); }
+function logEvent(what) { const d = D(); if (!d || !d.log) return; const t = nowIso(); d.log.push({id: "lg-" + uid(), at: t, act: "Event", coll: "", ref: "", what, dev: ONLINE ? "Online" : "MacBook", updatedAt: t}); }
+const COLL_LABEL = {vouchers: "Entry", ledgers: "Account", comp: "Compliance", letters: "Letter", "": "—"};
+async function exportLog() { const rows = D().log.slice().sort((a, b) => b.at.localeCompare(a.at)).map(l => ({c: [fmtTime(l.at), l.act, COLL_LABEL[l.coll] || l.coll, l.what || "", l.dev || ""]}));
+  await exportSpec({title: "Activity Log", subtitle: "As on " + dLong(todayStr()), sheet: "Activity", fileName: "Activity log " + todayStr(), landscape: true,
+    tables: [{cols: [C("When", 34), C("Action", 18), C("Type", 20), C("Details", 140), C("Where", 20)], rows: rows.length ? rows : [{c: ["", "", "", "No activity yet", ""]}]}]}, "xlsx"); }
+// ----- backups
+function backupNotice() { if (ONLINE || S.fileHandle) return ""; const last = ls.get("lastBackup", ""); const n = last ? daysBetween(last, todayStr()) : 999; if (n < 7) return "";
+  return `<div class="notice" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><span><b>Backup reminder:</b> ${last ? "your last backup was " + n + " days ago" : "no backup has been taken on this Mac yet"}. Keep an encrypted copy in your PNA Ledger folder or a pen drive.</span><button class="btn sm primary" data-act="backup">Download backup now</button></div>`; }
+async function driveBackupNow(btn, quiet) {
+  if (!driveOK()) { if (!quiet) toast("Drive backups run from the online ledger."); return; }
+  const old = btn && btn.textContent; if (btn) { btn.disabled = true; btn.textContent = "Backing up…"; }
+  try { const s = ST(); const text = await seal(S.data, S.key, S.salt, S.iter); const root = await driveRoot();
+    if (!s.backupFolderId) { const f = await dcall("create_file", {title: "00 Ledger backups (encrypted)", contentMimeType: FOLDER_MIME, parentId: root}); s.backupFolderId = f.id; s.backupFolderUrl = folderUrl(f); }
+    const name = "PNA Ledger backup " + todayStr() + " " + new Date().toTimeString().slice(0, 5).replace(":", "") + ".pnaledger"; const blob = new Blob([text], {type: "application/octet-stream"});
+    if (fileArgsOK === null) { try { fileArgsOK = !!(await S.online.mcp.listTools()).fileArgs; } catch { fileArgsOK = false; } }
+    const input = {title: name, parentId: s.backupFolderId, contentMimeType: "application/octet-stream", disableConversionToGoogleType: true};
+    if (fileArgsOK) input.base64Content = {$file: {data: blob, name, type: "application/octet-stream"}}; else { if (blob.size > 700000) throw {code: "too_big"}; input.base64Content = b64(enc.encode(text)); }
+    try { await dcall("create_file", input); } catch (e) { if (e && e.code === "tool_error" && s.backupFolderId) { s.backupFolderId = null; throw e; } throw e; }
+    s.lastDriveBackup = nowIso(); s.updatedAt = nowIso(); logEvent("Encrypted backup saved to Google Drive"); commit(); if (!quiet) toast("Encrypted backup saved to Google Drive");
+  } catch (e) { console.warn("backup", e); if (!quiet) toast("Backup not saved: " + driveErr(e)); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = old; } } }
+function autoBackup() { if (!ONLINE || !S.data || S.locked || S.portalMode || !driveOK() || ST().autoBackup === false) return; if ((ST().lastDriveBackup || "").slice(0, 10) === todayStr()) return; driveBackupNow(null, true); }
+function safetyPanel() { const s = ST(); const log = D().log.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 12);
+  return `<div class="panel"><div class="panel-head"><h2>Safety &amp; activity</h2>${ONLINE ? `<button class="btn sm" data-act="drvbackup">Back up to Drive now</button>` : ""}</div>
+    ${ONLINE ? `<label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sf-auto" style="width:auto" ${s.autoBackup !== false ? "checked" : ""}> Save an encrypted backup to Google Drive every day (opens only with your ledger password)</label>
+      <p class="small muted" style="margin:6px 0 12px">Last Drive backup: <b>${esc(s.lastDriveBackup ? fmtTime(s.lastDriveBackup) : "not yet")}</b>${s.backupFolderUrl ? ` · <a href="${esc(s.backupFolderUrl)}" target="_blank" rel="noopener">Open backup folder ↗</a>` : ""}</p>`
+    : `<p class="small muted" style="margin:0 0 12px">Last backup on this Mac: <b>${esc(ls.get("lastBackup", "") ? dLong(ls.get("lastBackup", "")) : "not yet")}</b>${S.fileHandle ? " · every change is also saved to " + esc(S.fileName) : " · you'll see a reminder on the dashboard after 7 days"}.</p>`}
+    <div class="lbl" style="margin-bottom:6px">Recent activity</div>
+    ${log.length ? `<div class="tablewrap"><table><tbody>${log.map(l => `<tr><td class="small num" style="white-space:nowrap">${esc(fmtTime(l.at))}</td><td class="small"><span class="pill ${l.act === "Deleted" ? "out" : l.act === "Added" ? "in" : ""}">${esc(l.act)}</span> ${esc(l.what || "")}<div class="meta">${esc(l.dev || "")}</div></td></tr>`).join("")}</tbody></table></div>` : `<p class="small muted">Additions, edits and deletions will appear here.</p>`}
+    <div class="actions" style="margin-top:10px"><button class="btn sm" data-act="logxls">Download full activity log (Excel)</button></div></div>`; }
+function bindSafety() { const a = $("#sf-auto"); if (a) a.addEventListener("change", () => { ST().autoBackup = a.checked; ST().updatedAt = nowIso(); commit(); if (a.checked) autoBackup(); }); }
+
+// ================= MIS: monthly performance, client-wise and service-wise revenue =================
+function specMIS(y) {
+  const months = fyMonths(y).filter(m => m <= todayStr().slice(0, 7) || y < fyOf(todayStr())); const by = new Map(months.map(m => [m, {fees: 0, gst: 0, rcv: 0, exp: 0, cin: 0, cout: 0}]));
+  const cl = new Map(), sac = new Map();
+  for (const v of vouchers()) { if (!inFY(v.date, y)) continue; const o = by.get(v.date.slice(0, 7));
+    if (v.type === "sales") { const iv = calcInvoice(v.f); if (o) { o.fees += iv.taxable; o.gst += iv.cgst + iv.sgst + iv.igst; }
+      const c = cl.get(v.f.party) || {b: 0, t: 0, r: 0}; c.b += iv.grand; c.t += iv.taxable; cl.set(v.f.party, c);
+      for (const it of v.f.items || []) { const k = it.sac || "—"; const z = sac.get(k) || {n: 0, t: 0}; z.n++; z.t += +it.amount || 0; sac.set(k, z); } }
+    if (v.type === "receipt" && isClient(led(v.f.party))) { const g = r2(+v.f.amount + (+v.f.tds || 0)); if (o) o.rcv += g; const c = cl.get(v.f.party) || {b: 0, t: 0, r: 0}; c.r += g; cl.set(v.f.party, c); }
+    if (!o) continue;
+    for (const x of v.lines || []) { const l = led(x.l); if (!l) continue; if (G(l.group).nature === "E") o.exp += x.dr - x.cr; if (isMoney(l) && v.type !== "contra") { o.cin += x.dr; o.cout += x.cr; } } }
+  const T = {fees: 0, gst: 0, rcv: 0, exp: 0, cin: 0, cout: 0}; for (const o of by.values()) for (const k in T) T[k] += o[k];
+  const monthRows = [...by].map(([m, o]) => ({c: [monLabel(m), r2(o.fees), r2(o.gst), r2(o.rcv), r2(o.exp), r2(o.cin - o.cout)]})).concat([{c: ["Total", r2(T.fees), r2(T.gst), r2(T.rcv), r2(T.exp), r2(T.cin - T.cout)], t: "grand"}]);
+  const cd = clientDues(); const tFees = r2([...cl.values()].reduce((a, c) => a + c.t, 0)) || 1;
+  const cRows0 = [...cl].sort((a, b) => b[1].t - a[1].t); const top = cRows0.slice(0, 15), rest = cRows0.slice(15);
+  const cRows = top.map(([id, c]) => ({c: [lname(id), r2(c.b), r2(c.r), r2(Math.max(0, (cd.get(id) || {bal: 0}).bal)), (c.t * 100 / tFees).toFixed(1) + "%"]}));
+  if (rest.length) { const z = rest.reduce((a, [id, c]) => ({b: a.b + c.b, r: a.r + c.r, o: a.o + Math.max(0, (cd.get(id) || {bal: 0}).bal), t: a.t + c.t}), {b: 0, r: 0, o: 0, t: 0}); cRows.push({c: ["Other " + rest.length + " clients", r2(z.b), r2(z.r), r2(z.o), (z.t * 100 / tFees).toFixed(1) + "%"]}); }
+  const sRows = [...sac].sort((a, b) => b[1].t - a[1].t).map(([k, z]) => ({c: [k + (SAC.find(s => s[0] === k) ? " · " + SAC.find(s => s[0] === k)[1] : ""), String(z.n), r2(z.t), (z.t * 100 / tFees).toFixed(1) + "%"]}));
+  const comp = D().comp.filter(t => inFY(t.due, y) && led(t.client)); const cc = new Map(); for (const t of comp) { const cat = t.title ? "Other" : (compDef(t.type) || {cat: "Other"}).cat; const z = cc.get(cat) || {n: 0, f: 0, o: 0, od: 0}; z.n++; if (t.status === "filed") z.f++; if (isOpen(t)) { z.o++; if (t.due < todayStr()) z.od++; } cc.set(cat, z); }
+  const pl = periodPL(fyStart(y) < B() ? B() : fyStart(y), fyEnd(y)); const outstanding = r2([...cd.values()].reduce((a, s) => a + Math.max(0, s.bal), 0)); const billedG = r2([...cl.values()].reduce((a, c) => a + c.b, 0)), rcvd = r2([...cl.values()].reduce((a, c) => a + c.r, 0));
+  const tables = [{heading: "Month-wise performance", cols: [C("Month", 22), C("Fees billed (taxable)", 30, "r"), C("GST billed", 24, "r"), C("Collected from clients", 30, "r"), C("Expenses", 26, "r"), C("Net cash flow", 26, "r")], rows: monthRows},
+    {heading: "Client-wise billing and collection", cols: [C("Client", 70), C("Billed (incl. GST)", 30, "r"), C("Received", 28, "r"), C("Outstanding now", 28, "r"), C("Share of fees", 22, "r")], rows: cRows.length ? cRows : [{c: ["No invoices this year", "", "", "", ""]}]},
+    {heading: "Service-wise fees (by SAC)", cols: [C("Service", 100), C("Lines", 16, "r"), C("Fees (taxable)", 30, "r"), C("Share", 20, "r")], rows: sRows.length ? sRows : [{c: ["No invoices this year", "", "", ""]}]}];
+  if (cc.size) tables.push({heading: "Compliance status", cols: [C("Category", 60), C("Items", 20, "r"), C("Filed", 20, "r"), C("Open", 20, "r"), C("Overdue", 20, "r")], rows: [...cc].map(([k, z]) => ({c: [k, String(z.n), String(z.f), String(z.o), String(z.od)]}))});
+  return {title: "MIS Report", subtitle: "FY " + fyLabel(y) + " · as on " + dLong(todayStr()), sheet: "MIS", fileName: "MIS report FY " + fyLabel(y),
+    meta: [["Fees billed (taxable)", money(T.fees)], ["Collected from clients", money(rcvd)], ["Collection rate", billedG ? Math.round(rcvd * 100 / billedG) + "%" : "—"], ["Outstanding from clients", money(outstanding)], ["Net surplus", money(pl.net)]],
+    tables, notes: ["Fees billed are taxable values of invoices raised. Collections include TDS deducted by clients. Net cash flow is money in less money out across bank and cash, excluding contra transfers."], sign: true};
+}
+// generic on-screen renderer for a report spec
+function specHTML(spec) { return `<div class="panel"><div class="panel-head"><div><h2>${esc(spec.title)}</h2><div class="small muted">${esc(spec.subtitle || "")}</div></div></div>
+  ${spec.meta && spec.meta.length ? `<div class="grid cols-4" style="margin-bottom:14px">${spec.meta.slice(0, 4).map(([k, v]) => `<div class="stat"><div class="label">${esc(k)}</div><div class="value" style="font-size:20px">${esc(v)}</div></div>`).join("")}</div>` : ""}
+  ${spec.tables.map(tb => `${tb.heading ? `<h3 style="margin:16px 0 8px">${esc(tb.heading)}</h3>` : ""}<div class="tablewrap"><table class="wide"><thead><tr>${tb.cols.map(c => `<th class="${c.align === "r" ? "r" : ""}">${esc(c.h)}</th>`).join("")}</tr></thead><tbody>${tb.rows.map(r => `<tr class="${r.t === "grand" || r.t === "total" ? "total" : r.t === "sub" ? "sub" : ""}">${r.c.map((v, i) => `<td class="${tb.cols[i] && tb.cols[i].align === "r" ? "r num" : ""}">${typeof v === "number" ? amt(v) : esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`).join("")}
+  ${spec.notes ? `<p class="small muted" style="margin-top:12px">${spec.notes.map(esc).join(" ")}</p>` : ""}</div>`; }
+REPS.push(["mis", "MIS"], ["compr", "Compliance"]); Object.assign(REPORT_SPECS, {mis: () => specMIS(S.fy), compr: () => specComp(S.fy)});
 
 // ================= Google Drive: client folders, uploads, sharing (online ledger) =================
 const DRIVE = "Google Drive", FOLDER_MIME = "application/vnd.google-apps.folder";
@@ -4200,7 +5100,7 @@ function buildPacket(c) {
   const invoices = vouchers().filter(v => v.type === "sales" && v.f.party === c.id).map(v => ({id: v.id, no: v.no, date: v.date, f: v.f, st: invStatus(v)}));
   const docs = docsOf(c.id).filter(d => d.shared).map(d => d.url ? {id: d.id, name: d.name, url: d.url, cat: d.cat, at: d.at} : {id: d.id, name: d.name, type: d.type, size: d.size, cat: d.cat, at: d.at, n: d.n, key: d.key});
   const client = {...c}; delete client.portal; delete client.notes; delete client.folder;
-  return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs};
+  return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs, comp: typeof compPacket === "function" ? compPacket(c) : []};
 }
 const portalLink = c => (webOn() ? siteUrl() : VIEWER_URL) + "#c" + c.portal.token;
 function genPw() { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint8Array(12)); let s = ""; for (const x of r) s += A[x % A.length]; return s.slice(0, 4) + "-" + s.slice(4, 8) + "-" + s.slice(8); }
@@ -4285,7 +5185,7 @@ function portalLock() {
 }
 function portalShell() {
   const pk = S.pk, s = ST(), c = pk.client; const billed = r2(pk.invoices.reduce((a, i) => a + calcInvoice(i.f).grand, 0)); const paid = r2(pk.statement.reduce((a, x) => a + (x.cr || 0), 0));
-  const tabs = [["inv", "Invoices"], ["st", "Statement"], ["docs", "Documents"], ["pay", "Pay & contact"]];
+  const tabs = [["inv", "Invoices"], ["st", "Statement"], ...((pk.comp || []).length ? [["comp", "Compliance"]] : []), ["docs", "Documents"], ["pay", "Pay & contact"]];
   let body = "";
   if (S.ptab === "inv") body = pk.invoices.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Invoice no.</th><th>Services</th><th class="r">Amount</th><th>Status</th><th></th></tr></thead><tbody>
     ${pk.invoices.slice().reverse().map(i => `<tr class="click" data-pinv="${i.id}"><td class="num">${dmy(i.date)}</td><td class="num"><b>${esc(i.no)}</b></td><td>${esc((i.f.items || []).map(x => x.desc).join(", "))}</td><td class="r num">${money(calcInvoice(i.f).grand)}</td>
@@ -4295,7 +5195,10 @@ function portalShell() {
     <div class="filters" style="justify-content:space-between;margin-top:10px"><span class="small muted">Dr balance = amount payable by you · Cr balance = advance with us.</span><button class="btn sm primary" data-act="pstmt">Download statement (PDF)</button></div>`;
   if (S.ptab === "docs") body = pk.docs.length ? `<div class="tablewrap"><table><tbody>${pk.docs.map(d => `<tr><td><b>${esc(d.name)}</b><div class="meta">${esc(d.cat)}${d.size ? " · " + fmtSize(d.size) : ""} · ${esc(dLong((d.at || "").slice(0, 10)))}</div></td><td class="r">${d.url ? `<a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Open ↗</a>` : (MODE !== "online" && !d.embedded) ? `<span class="small muted">Ask us for this document</span>` : `<button class="btn sm" data-pdoc="${d.id}">Download</button>`}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty"><strong>No documents shared yet</strong></div>`;
-  if (S.ptab === "pay") body = `<div class="grid cols-2"><div><h3 style="margin-bottom:8px">Bank details</h3><dl class="kv">${[["A/c name", s.bankAcName || s.firm], ["Bank", [s.bankName, s.bankBranch].filter(Boolean).join(", ")], ["A/c no.", s.bankAcc], ["IFSC", s.bankIfsc], ["UPI", s.upi]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd><b>${esc(r[1])}</b></dd>`).join("")}</dl>
+  if (S.ptab === "comp") { const td = todayStr(); body = `<div class="tablewrap"><table class="wide"><thead><tr><th>Due date</th><th>Compliance</th><th>Period</th><th>Status</th><th>Filed on</th><th>Acknowledgement</th></tr></thead><tbody>${(pk.comp || []).map(t => { const open = t.st !== "filed" && t.st !== "na";
+      return `<tr><td class="num">${dmy(t.due)}</td><td><b>${esc(t.n)}</b></td><td class="small">${esc(t.p)}</td><td>${t.st === "filed" ? `<span class="pill in">Filed</span>` : t.st === "na" ? `<span class="pill">Not applicable</span>` : t.st === "docs" ? `<span class="pill warn">Documents awaited from you</span>` : open && t.due < td ? `<span class="pill out">Pending</span>` : `<span class="pill">Upcoming</span>`}</td><td class="num">${t.on ? dmy(t.on) : ""}</td><td class="num small">${esc(t.ack)}</td></tr>`; }).join("")}</tbody></table></div>
+    <p class="small muted" style="margin-top:10px">Items marked “Documents awaited from you” need your data or documents — please share them so we can file on time.</p>`; }
+  if (S.ptab === "pay") body = `${s.upi && pk.bal > 0 ? (() => { const u = upiUrl(pk.bal, "Fees " + c.name); const q = qrPNG(u); return `<div class="panel" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px">${q ? `<img src="${q}" alt="UPI QR code" width="132" height="132" style="border-radius:8px;background:#fff">` : ""}<div><div class="label">Pay now with UPI</div><div class="value" style="font-size:22px;margin:4px 0">${money(pk.bal)}</div><div class="small muted">Scan with any UPI app, or on your phone:</div><a class="btn primary" style="margin-top:8px" href="${esc(u)}">Pay ${money(pk.bal)} in a UPI app</a></div></div>`; })() : ""}<div class="grid cols-2"><div><h3 style="margin-bottom:8px">Bank details</h3><dl class="kv">${[["A/c name", s.bankAcName || s.firm], ["Bank", [s.bankName, s.bankBranch].filter(Boolean).join(", ")], ["A/c no.", s.bankAcc], ["IFSC", s.bankIfsc], ["UPI", s.upi]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd><b>${esc(r[1])}</b></dd>`).join("")}</dl>
     ${s.upi ? `<button class="btn sm" style="margin-top:10px" data-act="pcopy" data-v="${esc(s.upi)}">Copy UPI ID</button>` : ""}</div>
     <div><h3 style="margin-bottom:8px">Contact us</h3><dl class="kv">${[["Phone", s.phone], ["Email", s.email], ["Office", [s.addr1, s.addr2].filter(Boolean).join(" · ")], ["GSTIN", s.gstin]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl></div></div>`;
   return `<header class="brandbar"><div class="brand"><div class="mono">PNA</div><div style="min-width:0"><div class="firm">${esc(s.firm)}</div><div class="tag">${esc(s.tagline || "")} · Client portal</div></div></div>
@@ -4400,7 +5303,7 @@ async function publishSite() {
     if (entries.length) { const nt = await gh("/git/trees", {method: "POST", body: {base_tree: cm.tree.sha, tree: entries}});
       const nc = await gh("/git/commits", {method: "POST", body: {message: "Update client portal (" + nAcc + " client" + (nAcc === 1 ? "" : "s") + ")", tree: nt.sha, parents: [head]}});
       await gh("/git/refs/heads/" + br, {method: "PATCH", body: {sha: nc.sha}}); }
-    ls.set("webPublished", {at: nowIso(), n: nAcc}); S.webState = (entries.length ? "Published " + stamp() + " · live in a few minutes" : "Up to date · checked " + stamp()) + (S.webSkipped.length ? " · not published (password shorter than 10 characters — change it in the client's portal): " + S.webSkipped.join(", ") : ""); refreshWebState();
+    ls.set("webPublished", {at: nowIso(), n: nAcc}); if (entries.length) logEvent("Client portal website updated (" + nAcc + " clients)"); S.webState = (entries.length ? "Published " + stamp() + " · live in a few minutes" : "Up to date · checked " + stamp()) + (S.webSkipped.length ? " · not published (password shorter than 10 characters — change it in the client's portal): " + S.webSkipped.join(", ") : ""); refreshWebState();
     return {changed: entries.length, clients: nAcc};
   } catch (e) { S.webState = "Not published: " + webErr(e); refreshWebState(); throw e; }
   finally { siteBusy = false; if (siteAgain) { siteAgain = false; scheduleSite(); } }
@@ -4504,7 +5407,8 @@ async function onUnlock(e) {
   try { let text; if (ONLINE) { const r = await fetchRemote(); if (!r) throw new Error("nodata"); text = r.text; S.online.baseVer = r.md.ver; } else text = await Store.get("vault");
     const o = await unseal(text, pw); Object.assign(S, {key: o.key, salt: o.salt, iter: o.iter, data: o.data, pw, locked: false, lastAct: Date.now(), lockMsg: ""});
     if (permP) await permP; S.saveState = ONLINE ? "Saved online" : "Saved on this Mac" + (ls.get("lastSave") ? " · " + fmtTime(ls.get("lastSave")) : "");
-    if (o.data._migrated) { delete o.data._migrated; persist(); } memo = {}; dirty(); schedulePortals();
+    if (o.data._migrated) { delete o.data._migrated; persist(); } memo = {}; logEvent("Ledger opened"); dirty(); schedulePortals();
+    if (ONLINE) setTimeout(autoBackup, 9000);
     if (ONLINE && S.online.mcp && ST().driveAccount) setTimeout(async () => { try { const me = await driveWhoAmI(); if (me && me !== ST().driveAccount) { const r = await checkDrive(); driveChangedPrompt(r); } } catch {} }, 2500);
   } catch (err) { console.warn(err); const el = $("#pw-err"); if (el) el.textContent = err.message === "badpw" ? "That password doesn't match. Try again." : "Couldn't open the ledger data. Check your connection and try again."; if (btn) { btn.disabled = false; btn.textContent = "Unlock"; } }
 }
@@ -4527,7 +5431,7 @@ function restoreFlow() {
     const o = await unseal(text, pw); Object.assign(S, {key: o.key, salt: o.salt, iter: o.iter, data: o.data, pw, locked: false, hasVault: true});
     if (ONLINE) await onlineSave(); else await localSave(); closeModal(); memo = {}; dirty(); toast("Ledger opened from file"); }));
 }
-async function doBackup() { const t = await seal(S.data, S.key, S.salt, S.iter); await saveFile("PNA Ledger backup " + todayStr() + ".pnaledger", new Blob([t], {type: "application/octet-stream"})); }
+async function doBackup() { const t = await seal(S.data, S.key, S.salt, S.iter); if (await saveFile("PNA Ledger backup " + todayStr() + ".pnaledger", new Blob([t], {type: "application/octet-stream"}))) { ls.set("lastBackup", todayStr()); logEvent("Encrypted backup downloaded"); dirty(); } }
 async function syncOut() { const t = await seal(S.data, S.key, S.salt, S.iter); await saveFile((ONLINE ? "PNA Ledger from online " : "PNA Ledger from MacBook ") + todayStr() + ".pnaledger", new Blob([t], {type: "application/octet-stream"})); }
 function syncIn() { pickFile(text => askPassword("Merge file", "Enter the ledger password used for this file.", async pw => { const o = await unseal(text, pw);
   const before = D().vouchers.length; S.data = mergeData(S.data, o.data); memo = {}; persist(); closeModal(); dirty(); toast("Merged · " + (D().vouchers.length - before) + " new vouchers added"); }, S.pw)); }
