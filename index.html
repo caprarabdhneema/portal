@@ -55,6 +55,19 @@ nav.tabs button{background:none;border:0;padding:12px 12px 10px;color:var(--mute
 nav.tabs button:hover{color:var(--ink)} nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold)}
 .stack{display:flex;flex-direction:column;gap:16px} .grid{display:grid;gap:16px}
 .cols-4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))} .cols-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))}
+.hero-strip{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px;align-items:center;background:linear-gradient(120deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--line);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+.hero-strip:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gold)}.hero-strip h2{font-family:"Times New Roman",Georgia,serif;font-size:24px;margin:2px 0 0}.hero-strip .pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
+.quote{margin:0;position:relative;padding:4px 64px 4px 18px;border-left:2px solid var(--line)}.quote blockquote{margin:0;font-family:"Times New Roman",Georgia,serif;font-size:17px;line-height:1.45;font-style:italic;color:var(--ink)}.quote figcaption{margin-top:6px;font-size:12.5px;color:var(--gold);font-weight:600;letter-spacing:.02em}
+.qnav{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;gap:2px}.qnav .x{font-size:20px;width:28px;height:28px}
+@media (max-width:860px){.hero-strip{grid-template-columns:minmax(0,1fr)}.quote{padding-left:14px}}
+.notes{display:grid;gap:10px}.note{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}.note .nhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.note h4{margin:8px 0 4px;font-size:15px;line-height:1.35}.note p{margin:0 0 6px;font-size:13.5px;color:var(--muted);line-height:1.5}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.cal .cw{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:2px 0}
+.cday{position:relative;aspect-ratio:1.15;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;padding:4px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;min-width:0}
+.cday b{font-size:12.5px;font-weight:600}.cday i{font-style:normal;font-size:11px;font-weight:700;color:#fff;border-radius:99px;padding:0 6px;align-self:flex-end;line-height:17px}.cday i.out{background:var(--out)}.cday i.warn{background:var(--warn)}.cday i.in{background:var(--in)}
+.cday em{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--in)}.cday:not(.has){color:var(--muted)}.cday.today{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}.cday.sel{background:var(--accent-soft);border-color:var(--accent)}.cday:hover{border-color:var(--accent)}
+.crow{display:flex;justify-content:space-between;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 2px;font:inherit;color:var(--ink);cursor:pointer}.crow .meta{display:block}.crow:hover{background:var(--surface-2)}
+.dlcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.dlcard{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.dln{font-size:22px;font-weight:700;color:var(--accent);text-align:center;line-height:1.05}.dln small{display:block;font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.02em}.dlcard.soon .dln{color:var(--warn)}.dlcard.late .dln{color:var(--out)}.dlcard.late{border-color:var(--out-soft)}
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.cgrp{border:1px solid var(--line);border-radius:10px;padding:8px 10px 10px;margin:0;min-width:0}.cgrp legend{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);padding:0 4px}
 .cchk{display:flex;gap:8px;align-items:flex-start;padding:5px 2px;cursor:pointer;font-size:13.5px}.cchk input{width:auto;margin-top:3px}.cchk .meta{display:block}
 .bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}.bar i{display:block;height:100%;background:var(--in)}
@@ -2626,7 +2639,7 @@ function ensureSys(d) {
 function mergeArr(a, b, tomb) { const m = new Map();
   for (const r of [...(a || []), ...(b || [])]) { const cur = m.get(r.id); if (!cur || (r.updatedAt || "") > (cur.updatedAt || "")) m.set(r.id, r); }
   return [...m.values()].filter(r => !(tomb[r.id] && tomb[r.id] >= (r.updatedAt || ""))); }
-const COLLS = ["groups", "ledgers", "vouchers", "msgs", "docs", "comp", "letters", "log"];
+const COLLS = ["groups", "ledgers", "vouchers", "msgs", "docs", "comp", "letters", "notes", "log"];
 function mergeData(a, b) {
   if (!a) return b; if (!b) return a;
   const tomb = {...(a.tomb || {})}; for (const [k, v] of Object.entries(b.tomb || {})) if (!tomb[k] || v > tomb[k]) tomb[k] = v;
@@ -2676,7 +2689,7 @@ const VKEY = {contra: "F4", payment: "F5", receipt: "F6", journal: "F7", sales: 
 
 // ================= state & computations =================
 const S = {locked: true, pw: null, key: null, salt: null, iter: ITER, data: null, fy: fyOf(todayStr()), tab: ls.get("tab", "dash"),
-  f: {month: "all", type: "all", q: ""}, sel: null, lq: "", cq: "", invQ: "", invSt: "all", rep: ls.get("rep", "pl"), msgTab: "remind", cf: {view: "due", cat: "", st: "", staff: "", q: "", month: todayStr().slice(0, 7)}, lt: {view: "new", tpl: null, client: "", date: todayStr(), f: {}, sub: null, body: null, to: null, ref: null, id: null, q: ""},
+  f: {month: "all", type: "all", q: ""}, sel: null, lq: "", cq: "", invQ: "", invSt: "all", rep: ls.get("rep", "pl"), msgTab: "remind", cf: {view: "due", cat: "", st: "", staff: "", q: "", month: todayStr().slice(0, 7)}, cal: {m: todayStr().slice(0, 7), day: null}, notesAll: false, lt: {view: "new", tpl: null, client: "", date: todayStr(), f: {}, sub: null, body: null, to: null, ref: null, id: null, q: ""},
   saveState: "", fileHandle: null, fileName: "", hasVault: undefined, online: {db: null, user: null, dl: null, mcp: null, ready: false, meta: undefined, baseVer: null}, lastAct: Date.now()};
 let memo = {}; const M = (k, fn) => (k in memo ? memo[k] : (memo[k] = fn()));
 const D = () => S.data; const ST = () => S.data.settings; const B = () => ST().booksStart;
@@ -3275,7 +3288,7 @@ function vDash() {
   const cd = [...clientDues().values()].filter(s => s.bal > 0).sort((a, b) => b.bal - a.bal); const over90 = r2(cd.reduce((a, s) => a + s.age[3], 0));
   const recent = vouchers().filter(v => inFY(v.date, S.fy)).slice(-8).reverse();
   const payables = r2(D().ledgers.filter(l => G(l.group).base === "creditors").reduce((a, l) => a + Math.max(0, -bal(l.id, asOf)), 0));
-  return `<div class="stack">
+  return `<div class="stack">${dashHero()}
   <div class="grid cols-4">
     <div class="panel stat hero"><div class="label">Funds in hand ${cur ? "today" : "on " + dmy(asOf)}</div><div class="value">${money(fundsTotal(asOf))}</div>
       <div class="acct-list">${moneyLedgers().filter(l => l.active !== false || bal(l.id, asOf)).map(l => `<div class="acct-row"><span>${esc(l.name)}</span><span class="num">${money(bal(l.id, asOf))}</span></div>`).join("")}</div></div>
@@ -3287,6 +3300,7 @@ function vDash() {
   ${backupNotice()}${recurPanel()}
   <div class="grid cols-2">${compDashPanel()}
     <div class="panel"><div class="panel-head"><h2>Money in &amp; out</h2><div class="legend"><span><i style="background:var(--in)"></i>In</span><span><i style="background:var(--out)"></i>Out</span></div></div>${chart(st)}</div></div>
+  <div class="grid cols-2">${calPanel()}${notesPanel()}</div>
   <div class="grid cols-2">
     <div class="panel"><div class="panel-head"><h2>Largest client dues</h2><button class="btn ghost sm" data-tab="clients">All clients →</button></div>
       ${cd.length ? `<div class="tablewrap"><table><tbody>${cd.slice(0, 6).map(s => `<tr class="click" data-client="${s.id}"><td>${esc(lname(s.id))}</td><td class="r num">${money(s.bal)}</td><td class="r">${ageChip(s.oldest)}</td></tr>`).join("")}</tbody></table></div>`
@@ -3538,6 +3552,8 @@ function vSettings() {
       <p class="small muted" style="margin-top:0">Entries made in either place are combined record by record; the newest change wins and nothing is duplicated.</p>
       <div class="actions"><button class="btn" data-act="syncout">${ONLINE ? "Download file for MacBook" : "Save file for online"}</button><button class="btn" data-act="syncin">${ONLINE ? "Merge file from MacBook" : "Merge file from online"}</button>${!ONLINE ? `<a class="btn" href="${VIEWER_URL}" target="_blank" rel="noopener">Open online ledger ↗</a>` : ""}</div></div>
     ${safetyPanel()}
+    <div class="panel"><div class="panel-head"><h2>Quotes on dashboard &amp; client portal</h2></div><p class="small muted" style="margin-top:0">A different money quote shows each day. Add your firm's own lines here — one per line, optionally “Quote — Author”. Built-in quotes from Franklin, Buffett, Kautilya and others are always included.</p>
+      <textarea id="q-own" rows="4" placeholder="Plan taxes in April, not in March — ${esc(ST().firm)}">${esc(ST().quotes || "")}</textarea><div class="actions" style="margin-top:8px"><button class="btn sm" data-act="savequotes">Save quotes</button></div></div>
     <div class="panel"><div class="panel-head"><h2>Backup</h2></div><p class="small" style="margin-top:0">${esc(S.saveState || "")}</p>
       ${fsOK ? `<p class="small muted">${S.fileHandle ? "Also saving every change to <b>" + esc(S.fileName) + "</b>." : "Choose a file in your PNA Ledger folder and every change is saved there too."}</p><div class="actions" style="margin-bottom:10px"><button class="btn" data-act="linkfile">${S.fileHandle ? "Change data file" : "Save changes to a file"}</button></div>` : ""}
       <div class="actions"><button class="btn" data-act="backup">Download encrypted backup</button><button class="btn" data-act="restore">Restore from backup</button></div></div>
@@ -3560,7 +3576,7 @@ function bind() {
   on("set-form", "submit", saveSettings); bindWeb();
   const cf = S.cf; on("cf-cat", "change", e => { cf.cat = e.target.value; dirty(); }); on("cf-st", "change", e => { cf.st = e.target.value; dirty(); }); on("cf-staff", "change", e => { cf.staff = e.target.value; dirty(); });
   on("cf-q", "input", e => { cf.q = e.target.value; dirty(); }); on("cf-month", "change", e => { cf.month = e.target.value; dirty(); });
-  if (S.tab === "comp" && $("main")) bindCompRows($("main")); if (S.tab === "letters") bindLetters(); if (S.tab === "settings") bindSafety(); on("pw-form", "submit", changePassword);
+  if (S.tab === "comp" && $("main")) bindCompRows($("main")); if (S.tab === "dash") bindEngage($("main")); if (S.tab === "letters") bindLetters(); if (S.tab === "settings") bindSafety(); on("pw-form", "submit", changePassword);
   on("dv-auto", "change", e => { ST().driveAuto = e.target.checked; ST().updatedAt = nowIso(); commit(); }); on("dv-subs", "change", e => { ST().driveSubsOn = e.target.checked; ST().updatedAt = nowIso(); commit(); });
   on("au-seal", "change", e => { ST().sealOn = e.target.checked; ST().updatedAt = nowIso(); commit(); }); on("au-qr", "change", e => { ST().qrOn = e.target.checked; ST().updatedAt = nowIso(); commit(); });
   on("au-sign-x", "click", () => { ST().signImg = ""; ST().updatedAt = nowIso(); commit(); toast("Signature removed"); });
@@ -3591,7 +3607,8 @@ document.addEventListener("click", e => {
   if (a === "newmenu") { if (menu) menu.hidden = !menu.hidden; return; }
   if (a === "lock") return lock(); if (a === "editled") return ledgerForm(led(d.id)); if (a === "newgroup") return groupForm(null);
   if (a === "xlsall") return exportAll(); if (a === "backup") return doBackup(); if (a === "restore") return restoreFlow(); if (a === "linkfile") return linkFile();
-  if (a === "bulkdrive") return bulkCreateFolders(el); if (a === "bulkremind") return bulkRemind(); if (a === "recurall") return recurCreateAll(el); if (a === "comptask") return compEdit(null);
+  if (a === "bulkdrive") return bulkCreateFolders(el); if (a === "notesall") { S.notesAll = !S.notesAll; dirty(); return; }
+  if (a === "savequotes") { ST().quotes = $("#q-own").value; ST().updatedAt = nowIso(); commit(); toast("Quotes saved"); return; } if (a === "bulkremind") return bulkRemind(); if (a === "recurall") return recurCreateAll(el); if (a === "comptask") return compEdit(null);
   if (a === "savestaff") { ST().staff = ($("#cs-staff").value || "").split(",").map(x => x.trim()).filter(Boolean); ST().updatedAt = nowIso(); commit(); toast("Team saved"); return; }
   if (a === "drvbackup") return driveBackupNow(el); if (a === "logxls") return exportLog();
   if (a === "drvcheck") return driveCheckFlow(el); if (a === "drvswitch") return driveSwitchFlow(); if (a === "drvroot") return driveRootFlow(); if (a === "drvsubs") return driveSubsFlow();
@@ -4122,7 +4139,7 @@ const COMP = [
   {k: "esic", cat: "Payroll", f: "M", n: "ESIC – payment", r: "15th of next month", due: (Y, M) => nx(Y, M, 15)},
 ];
 // notified extensions (statutory date otherwise): CBDT Circular 07/2026 for AY 2026-27
-const COMP_EXT = {"taxaudit|2025": ["2026-10-21", "Extended by CBDT"], "itraudit|2025": ["2026-11-21", "Extended by CBDT"]};
+const COMP_EXT = {"taxaudit|2025": ["2026-10-21", "Extended by CBDT"], "itraudit|2025": ["2026-11-21", "Extended by CBDT"], "aoc4|2025": ["2026-12-31", "Extended by MCA (GC 05/2026)"], "mgt7|2025": ["2027-01-31", "Extended by MCA (GC 05/2026)"]};
 const COMP_CATS = ["GST", "Income tax", "TDS", "Audit", "ROC", "LLP", "Payroll", "Other"];
 const compDef = k => COMP.find(c => c.k === k) || (ST().compCustom || []).find(c => c.k === k);
 const compName = (k, fy) => { const d = compDef(k); if (!d) return "Compliance"; return typeof d.n === "function" ? d.n({fy}) : d.n; };
@@ -4155,6 +4172,7 @@ function compDue(def, p, c) { const ext = COMP_EXT[def.k + "|" + p.fy]; if (ext)
   return def.due(p.Y, p.M, {fy: p.fy, q: p.q, h: p.h, state: c.stateCode || ST().stateCode}); }
 // create any missing tasks for clients' selected compliances (idempotent, ids are deterministic)
 function genComp(y) {
+  for (const t of D().comp) { const ex = COMP_EXT[t.type + "|" + t.fy]; if (ex && t.due !== ex[0] && !t.ext && isOpen(t)) { t.due = ex[0]; t.updatedAt = nowIso(); } }
   const have = new Set(D().comp.map(t => t.id)); let n = 0; const lo = fyStart(y), hi = fyEnd(y);
   for (const c of clients()) { if (!(c.comp || []).length || c.active === false) continue; const from = c.compFrom || B();
     for (const k of c.comp) { const def = compDef(k); if (!def) continue;
@@ -5041,6 +5059,121 @@ function bulkRemind() { const list = [...clientDues().values()].filter(s => s.ba
       catch (er) { console.warn(er); cell.innerHTML = `<span class="pill out">Not sent</span>`; if (er && ["needs_reauth", "server_not_connected", "not_in_manifest", "blocked_by_policy"].includes(er.code)) { $("#br-err").textContent = "Gmail isn't connected — reconnect it in claude.ai Settings → Connectors."; break; } } }
     btn.textContent = "Done"; toast(ok + " reminder" + (ok === 1 ? "" : "s") + " sent"); }); }
 
+// ================= Engagement: updates feed, money quotes, interactive compliance calendar (dashboard + client portal) =================
+const NOTE_CATS = ["GST", "Income tax", "TDS", "MCA / ROC", "RBI & banking", "FEMA", "Firm news", "Tip"];
+const QUOTES = [
+  ["An investment in knowledge pays the best interest.", "Benjamin Franklin"],
+  ["Beware of little expenses; a small leak will sink a great ship.", "Benjamin Franklin"],
+  ["If you would be wealthy, think of saving as well as getting.", "Benjamin Franklin"],
+  ["In this world nothing can be said to be certain, except death and taxes.", "Benjamin Franklin"],
+  ["Do not save what is left after spending; spend what is left after saving.", "Warren Buffett"],
+  ["Price is what you pay. Value is what you get.", "Warren Buffett"],
+  ["Accounting is the language of business.", "Warren Buffett"],
+  ["Rule No. 1: never lose money. Rule No. 2: never forget Rule No. 1.", "Warren Buffett"],
+  ["Someone is sitting in the shade today because someone planted a tree a long time ago.", "Warren Buffett"],
+  ["The stock market is a device for transferring money from the impatient to the patient.", "Warren Buffett"],
+  ["All undertakings depend upon finance. Hence foremost attention shall be paid to the treasury.", "Kautilya, Arthashastra"],
+  ["Wealth consists not in having great possessions, but in having few wants.", "Epictetus"],
+  ["Taxes are what we pay for civilized society.", "Oliver Wendell Holmes Jr."],
+  ["Money is a terrible master but an excellent servant.", "P. T. Barnum"],
+  ["Know what you own, and know why you own it.", "Peter Lynch"],
+  ["The four most dangerous words in investing are: this time it's different.", "Sir John Templeton"],
+  ["Profit is not the purpose of a business but the test of its validity.", "Peter Drucker"],
+  ["It's not how much money you make, but how much money you keep.", "Robert Kiyosaki"],
+  ["Revenue is vanity, profit is sanity, but cash is king.", "Business proverb"],
+  ["Good books today, a peaceful audit tomorrow.", "@firm"],
+  ["Every deadline met is a penalty saved.", "@firm"],
+  ["File early, sleep well.", "@firm"],
+  ["Keep your receipts the way you keep your promises.", "@firm"],
+  ["Cash flow is the oxygen of a business — check it every month.", "@firm"],
+  ["The cheapest tax saving is planning in April, not panicking in March.", "@firm"],
+];
+const allQuotes = () => { const s = ST(); const own = String(s.quotes || "").split("\n").map(x => x.trim()).filter(Boolean).map(x => { const m = x.split(/\s+[—–-]\s+(?=[^—–-]+$)/); return m.length > 1 ? [m[0], m[1]] : [x, "@firm"]; }); return [...own, ...QUOTES]; };
+const quoteWho = w => w === "@firm" ? ST().firm : w;
+const dayIndex = () => Math.floor(new Date(todayStr() + "T00:00:00").getTime() / 86400000);
+const greet = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
+function quoteHTML(i, id) { const q = allQuotes(); const k = ((i % q.length) + q.length) % q.length; const [t, w] = q[k];
+  return `<figure class="quote" id="${id}"><blockquote>“${esc(t)}”</blockquote><figcaption>— ${esc(quoteWho(w))}</figcaption><div class="qnav"><button type="button" class="x" data-qnav="-1" aria-label="Previous quote">‹</button><button type="button" class="x" data-qnav="1" aria-label="Next quote">›</button></div></figure>`; }
+let qOff = 0; function qnav(b) { qOff += +b.dataset.qnav; const f = b.closest(".quote"); if (f) f.outerHTML = quoteHTML(dayIndex() + qOff, f.id); }
+function bindQuote(root) { root.addEventListener("click", e => { const b = e.target.closest("[data-qnav]"); if (!b) return; e.stopPropagation(); qnav(b); }); }
+
+// ----- seeded updates (verified, with sources); the firm edits/adds its own in the Updates panel
+const SEED_NOTES = [
+  {d: "2026-10-24", cat: "MCA / ROC", aud: ["company", "opc"], t: "MCA extends FY 2025-26 annual filing — AOC-4 till 31 Dec 2026, MGT-7/7A till 31 Jan 2027",
+    b: "By General Circular No. 05/2026 dated 24 October 2026, companies can file AOC-4 (all variants) up to 31 December 2026 and MGT-7 / MGT-7A up to 31 January 2027 without additional fees. The AGM due date and ADT-1 are not extended.", l: "https://www.corplawupdates.in/updates/mca-extends-annual-filing-deadlines-fy-2025-26"},
+  {d: "2026-10-08", cat: "GST", aud: [], t: "57th GST Council: no rate change; lighter penalties and faster refunds recommended",
+    b: "The Council recommended removing the power of arrest, raising the prosecution threshold to ₹5 crore, cutting the general penalty to ₹10,000, sanctioning 90% of risk-assessed refunds within 3 working days, and allowing ITC on items such as employee health and life insurance. Most changes take effect only when CBIC notifies them; refund of tax on input services in inverted-duty cases applies to credit availed on or after 1 November 2026.", l: "https://www.canearby.com/blog/57th-gst-council-meeting-8-october-2026"},
+  {d: "2026-10-07", cat: "RBI & banking", aud: [], t: "RBI raises the repo rate by 25 bps to 5.50%",
+    b: "The MPC raised the repo rate to 5.50% with effect from 7 October 2026. Floating-rate loans linked to the repo rate may cost more from their next reset date — worth reviewing EMIs and working-capital limits.", l: "https://www.scconline.com/blog/post/2026/10/09/rbi-hikes-repo-rate-to-5-50-percent-october-2026/"},
+  {d: "2026-10-01", cat: "Income tax", aud: ["company", "opc", "llp", "firm", "trust"], t: "Tax audit date extended to 21 Oct 2026; ITR for audit cases to 21 Nov 2026",
+    b: "CBDT Circular 07/2026 extended the due date for tax audit reports for AY 2026-27 to 21 October 2026 and for returns of income in audit cases to 21 November 2026.", l: "https://taxguru.in/income-tax/cbdt-extends-ay-2026-27-tax-audit-date-21-october-2026.html"},
+  {d: "2026-07-01", cat: "TDS", aud: ["company", "opc", "llp", "firm", "trust"], t: "New TDS / TCS statements from FY 2026-27: Forms 138, 140, 144 and 143",
+    b: "Under the Income-tax Act, 2025, quarterly statements are filed in Form 138 (salary), Form 140 (resident non-salary), Form 144 (non-resident) and Form 143 (TCS). TCS statements now follow the TDS calendar: 31 Jul, 31 Oct, 31 Jan and 31 May.", l: "https://taxguru.in/income-tax/q1-tax-year-2026-27-tds-tcs-return-filing-forms-due-dates.html"},
+  {d: "2026-08-01", cat: "Income tax", aud: ["individual", "huf"], t: "Missed the ITR deadline? Belated return for AY 2026-27 can be filed till 31 Dec 2026",
+    b: "A belated return for AY 2026-27 can still be filed up to 31 December 2026, with late fee and interest; a revised return can be filed up to 31 March 2027. Share your documents early so we can file before the year-end rush.", l: "https://calcguru.in/itr-due-date-ay-2026-27/"},
+];
+function seedNotes() { const s = ST(); if (s.notesSeeded) return false; for (const n of SEED_NOTES) D().notes.push({id: "nt-" + n.d + "-" + n.cat.replace(/\W+/g, "").toLowerCase(), date: n.d, cat: n.cat, aud: n.aud, title: n.t, body: n.b, link: n.l, portal: true, createdAt: nowIso(), updatedAt: nowIso()});
+  s.notesSeeded = true; s.updatedAt = nowIso(); return true; }
+const notesFor = entity => D().notes.filter(n => n.portal !== false && (!(n.aud || []).length || (entity && n.aud.includes(entity)))).sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date));
+const catCls = c => ({"GST": "acc", "Income tax": "warn", "TDS": "warn", "MCA / ROC": "in", "RBI & banking": "", "Firm news": "in", "Tip": ""})[c] || "";
+function noteCard(n, admin) { return `<article class="note"><div class="nhead"><span class="pill ${catCls(n.cat)}">${esc(n.cat)}</span><span class="small muted">${esc(dLong(n.date))}</span>${n.pin ? `<span class="pill">Pinned</span>` : ""}${admin && n.portal === false ? `<span class="pill">Internal</span>` : ""}${admin && (n.aud || []).length ? `<span class="small muted">· for ${esc(n.aud.map(entityName).join(", "))}</span>` : ""}</div>
+  <h4>${esc(n.title)}</h4><p>${esc(n.body)}</p><div class="filters">${n.link ? `<a class="small" href="${esc(n.link)}" target="_blank" rel="noopener">Read more ↗</a>` : ""}${admin ? `<button class="btn sm ghost" data-note="${esc(n.id)}">Edit</button>` : ""}</div></article>`; }
+
+// ----- dashboard: greeting + quote, updates panel, compliance calendar
+function dashHero() { const td = todayStr(); const open = D().comp.filter(t => led(t.client) && isOpen(t)); const due = open.filter(t => t.due === td).length, over = open.filter(t => t.due < td).length, wk = open.filter(t => t.due > td && t.due <= addDays(td, 7)).length;
+  return `<div class="hero-strip"><div><div class="small muted">${esc(new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"}))}</div><h2>${greet()}, ${esc((ST().signatory || "").replace(/^CA\s+/i, "CA "))}</h2>
+    <div class="filters" style="margin-top:6px">${over ? `<button class="pill out" data-tab="comp">${over} overdue</button>` : ""}${due ? `<button class="pill warn" data-tab="comp">${due} due today</button>` : ""}<button class="pill" data-tab="comp">${wk} due this week</button>${duesTotal() ? `<button class="pill acc" data-tab="clients">${money(duesTotal())} to collect</button>` : ""}</div></div>${quoteHTML(dayIndex() + qOff, "q-dash")}</div>`; }
+function notesPanel() { if (!ST().notesSeeded && seedNotes()) setTimeout(persist, 50); const list = D().notes.slice().sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date)); const show = S.notesAll ? list : list.slice(0, 4);
+  return `<div class="panel"><div class="panel-head"><h2>Updates &amp; insights</h2><div class="actions"><span class="small muted">Shown on client portals</span><button class="btn sm primary" data-note="new">+ Add</button></div></div>
+    ${show.length ? `<div class="notes">${show.map(n => noteCard(n, true)).join("")}</div>${list.length > 4 ? `<button class="btn sm ghost" data-act="notesall" style="margin-top:8px">${S.notesAll ? "Show fewer" : "Show all " + list.length}</button>` : ""}` : `<div class="empty"><strong>No updates yet</strong>Share GST, income-tax and MCA changes with your clients — they appear on every client portal.</div>`}</div>`; }
+function noteForm(id) { const n = id && id !== "new" ? D().notes.find(x => x.id === id) : null; const aud = new Set((n && n.aud) || []);
+  openModal(`<div class="modal-head"><h2>${n ? "Edit update" : "New update for clients"}</h2><button class="x" data-close aria-label="Close">×</button></div>
+    <form id="nt-form" class="formgrid"><div class="field"><label class="lbl" for="nt-cat">Category</label><select id="nt-cat">${NOTE_CATS.map(c => opt(c, c, (n ? n.cat : "GST") === c)).join("")}</select></div>
+    <div class="field"><label class="lbl" for="nt-date">Date</label><input id="nt-date" type="date" value="${esc(n ? n.date : todayStr())}"></div>
+    <div class="field span2"><label class="lbl" for="nt-title">Headline</label><input id="nt-title" value="${esc(n ? n.title : "")}" placeholder="e.g. GSTR-9 for FY 2025-26 due on 31 December 2026"></div>
+    <div class="field span2"><label class="lbl" for="nt-body">What clients should know</label><textarea id="nt-body" rows="5">${esc(n ? n.body : "")}</textarea></div>
+    <div class="field span2"><label class="lbl" for="nt-link">Source link (optional)</label><input id="nt-link" value="${esc(n ? n.link || "" : "")}" placeholder="https://"></div>
+    <div class="field span2"><span class="lbl">Show to</span><div class="filters">${ENTITY.map(([k, l]) => `<label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="nt-aud" value="${k}" style="width:auto" ${aud.has(k) ? "checked" : ""}>${esc(l)}</label>`).join("")}</div><span class="hint">Leave all unticked to show to every client.</span></div>
+    <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="nt-portal" style="width:auto" ${!n || n.portal !== false ? "checked" : ""}> Show on client portals</label>
+    <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="nt-pin" style="width:auto" ${n && n.pin ? "checked" : ""}> Pin to the top</label>
+    <div class="err span2" id="nt-err"></div>
+    <div class="modal-foot span2">${n ? `<button type="button" class="btn danger" id="nt-del">Delete</button>` : "<span></span>"}<div class="right"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div></form>`, "wide");
+  $("#nt-form").addEventListener("submit", e => { e.preventDefault(); const title = $("#nt-title").value.trim(); if (!title) return $("#nt-err").textContent = "Write a headline.";
+    upsert("notes", Object.assign(n ? {...n} : {id: "nt-" + uid(), createdAt: nowIso()}, {cat: $("#nt-cat").value, date: $("#nt-date").value || todayStr(), title, body: $("#nt-body").value.trim(), link: $("#nt-link").value.trim(), aud: $$(".nt-aud:checked").map(x => x.value), portal: $("#nt-portal").checked, pin: $("#nt-pin").checked}));
+    commit(); closeModal(); toast("Update saved" + ($("#nt-portal") && webOn() ? " — it will appear on client portals after publishing" : "")); });
+  const del = $("#nt-del"); if (del) del.addEventListener("click", () => { if (!del.dataset.c) { del.dataset.c = 1; del.textContent = "Confirm delete"; return; } removeRec("notes", n.id); commit(); closeModal(); }); }
+function calPanel() { const cal = S.cal; const m = cal.m; const y = +m.slice(0, 4), mo = +m.slice(5, 7); const first = new Date(y, mo - 1, 1); const lead = (first.getDay() + 6) % 7; const days = new Date(y, mo, 0).getDate(); const td = todayStr();
+  const by = new Map(); for (const t of D().comp) { if (!led(t.client) || t.due.slice(0, 7) !== m) continue; (by.get(t.due) || by.set(t.due, []).get(t.due)).push(t); }
+  let cells = ""; for (let i = 0; i < lead; i++) cells += `<span></span>`;
+  for (let d = 1; d <= days; d++) { const ds = m + "-" + pad(d); const ts = by.get(ds) || []; const o = ts.filter(isOpen); const late = o.filter(t => t.due < td).length, done = ts.length - o.length;
+    cells += `<button class="cday${ds === td ? " today" : ""}${cal.day === ds ? " sel" : ""}${ts.length ? " has" : ""}" data-cday="${ds}" aria-label="${dLong(ds)}: ${ts.length} items"><b>${d}</b>${ts.length ? `<i class="${late ? "out" : o.length ? "warn" : "in"}">${ts.length}</i>` : ""}${done && o.length ? `<em></em>` : ""}</button>`; }
+  const sel = cal.day && by.get(cal.day) ? by.get(cal.day).sort((a, b) => lname(a.client).localeCompare(lname(b.client))) : null;
+  return `<div class="panel"><div class="panel-head"><h2>Compliance calendar</h2><div class="actions"><button class="btn sm ghost" data-cmon="-1" aria-label="Previous month">‹</button><b style="min-width:84px;text-align:center">${MON[mo - 1]} ${y}</b><button class="btn sm ghost" data-cmon="1" aria-label="Next month">›</button></div></div>
+    <div class="cal"><span class="cw">Mon</span><span class="cw">Tue</span><span class="cw">Wed</span><span class="cw">Thu</span><span class="cw">Fri</span><span class="cw">Sat</span><span class="cw">Sun</span>${cells}</div>
+    <div class="legend small" style="margin-top:8px"><span><i style="background:var(--out)"></i>Overdue</span><span><i style="background:var(--warn)"></i>Open</span><span><i style="background:var(--in)"></i>Done</span></div>
+    ${sel ? `<div class="calday"><div class="lbl" style="margin:10px 0 6px">${esc(dLong(cal.day))}</div>${sel.map(t => `<button class="crow" data-ccl="${t.client}"><span><b>${esc(compTitle(t))}</b><span class="meta">${esc(lname(t.client))} · ${esc(t.plabel || "")}</span></span>${dueChip(t)}</button>`).join("")}</div>` : `<p class="small muted" style="margin:10px 0 0">${by.size ? "Click a date to see what's due." : "No compliance due this month."}</p>`}</div>`; }
+function bindEngage(root) { if (!root) return; bindQuote(root);
+  root.addEventListener("click", e => { const b = e.target.closest("[data-cday],[data-cmon],[data-note],[data-ccl]"); if (!b) return; const d = b.dataset;
+    if (d.cday) { S.cal.day = S.cal.day === d.cday ? null : d.cday; dirty(); } if (d.cmon) { S.cal.m = addMonths(S.cal.m + "-01", +d.cmon).slice(0, 7); S.cal.day = null; dirty(); }
+    if (d.note) noteForm(d.note); if (d.ccl && b.classList.contains("crow")) compClient(d.ccl); }); }
+
+// ----- portal: deadlines by client type
+function portalDeadlines(c) { const td = todayStr(), lim = addDays(td, 60);
+  if ((c.comp || []).length) { const open = (typeof compPacket === "function" ? compPacket(c) : []).filter(t => t.st !== "filed" && t.st !== "na");
+    return {generic: false, list: open.filter(t => t.due >= td && t.due <= lim).slice(0, 8), earlier: open.filter(t => t.due < td).length}; }
+  if (!c.entity) return {generic: false, list: [], earlier: 0};
+  const keys = presetFor(c.entity, c.gstScheme || (c.gstin ? "monthly" : "none")); const out = []; const y = fyOf(td);
+  for (const k of keys) { const def = compDef(k); if (!def || def.cat === "Audit" || k === "agm") continue; for (const yy of [y, y + 1]) for (const p of compPeriods(def, yy)) { const due = compDue(def, p, c); if (due >= td && due <= lim) out.push({n: compName(k, p.fy), p: p.label, due, st: "pending"}); } }
+  const seen = new Set(); return {generic: true, earlier: 0, list: out.sort((a, b) => a.due.localeCompare(b.due)).filter(x => { const k = x.n + x.p; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8)}; }
+function portalHero(pk) { const c = pk.client;
+  return `<div class="hero-strip"><div><div class="small muted">${esc(new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"}))}</div><h2>${greet()}${c.contact ? ", " + esc(c.contact) : ""}</h2><div class="small muted" style="margin-top:4px">Your account with ${esc(pk.firm.firm)} — invoices, payments, deadlines and updates in one place.</div></div>${quoteHTML(dayIndex() + qOff, "q-portal")}</div>`; }
+function portalFeed(pk) { const c = pk.client, dl = pk.deadlines || {list: []}; const td = todayStr(); const notes = pk.notes || []; const shown = S.pAllNotes ? notes : notes.slice(0, 3);
+  return `${dl.list.length || dl.earlier ? `<div class="panel"><div class="panel-head"><h2>Your upcoming deadlines</h2><span class="small muted">${dl.generic ? "Statutory calendar for " + esc(entityName(c.entity)) : "Next 60 days"}</span></div>
+    ${dl.list.length ? `<div class="dlcards">${dl.list.map(t => { const n = daysBetween(td, t.due); return `<div class="dlcard ${n <= 7 ? "soon" : ""}"><div class="dln">${n === 0 ? "Today" : n + "<small>day" + (n === 1 ? "" : "s") + " left</small>"}</div><div><b>${esc(t.n)}</b><div class="meta">${esc(t.p)} · due ${esc(dLong(t.due))}</div>${t.st === "docs" ? `<span class="pill warn" style="margin-top:4px">Documents awaited from you</span>` : ""}</div></div>`; }).join("")}</div>` : `<p class="small muted" style="margin:0">Nothing falls due in the next 60 days.</p>`}
+    ${dl.earlier ? `<p class="small" style="margin:10px 0 0">${dl.earlier} earlier item${dl.earlier === 1 ? " is" : "s are"} still open — see the <button class="linkish" data-ptab="comp">Compliance</button> tab.</p>` : ""}
+    ${dl.generic ? `<p class="small muted" style="margin:10px 0 0">General due dates for your type of entity. Tell us which apply to you and we'll track them for you.</p>` : ""}</div>` : ""}
+  ${notes.length ? `<div class="panel"><div class="panel-head"><h2>Updates from ${esc(pk.firm.firm)}</h2><span class="small muted">Tax, GST, MCA and finance news that matters to you</span></div><div class="notes">${shown.map(n => noteCard(n, false)).join("")}</div>${notes.length > 3 ? `<button class="btn sm ghost" data-act="pnotes" style="margin-top:8px">${S.pAllNotes ? "Show fewer" : "Show all " + notes.length + " updates"}</button>` : ""}</div>` : ""}`; }
+
 // ================= Google Drive: client folders, uploads, sharing (online ledger) =================
 const DRIVE = "Google Drive", FOLDER_MIME = "application/vnd.google-apps.folder";
 const SUBS_DEFAULT = ["01 KYC & Registration", "02 Engagement & Agreements", "03 Financial Statements & Audit", "04 Income Tax", "05 GST", "06 ROC – MCA", "07 Notices & Orders", "08 Invoices & Statements", "09 Working Papers", "10 Shared with Client"];
@@ -5198,7 +5331,7 @@ function clientDocs(id) {
 }
 
 // ----- portal: what a client sees
-const FIRM_KEYS = ["firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
+const FIRM_KEYS = ["quotes", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
 function stLabel(v, x) { const f = v.f || {};
   if (v.type === "sales") return "Invoice " + v.no; if (v.type === "receipt") return "Payment received" + (f.mode ? " · " + f.mode : "") + (+f.tds ? " (incl. TDS " + money(f.tds) + ")" : "");
   if (v.type === "payment") return x.dr ? "Paid on your behalf" + (v.narration ? " · " + v.narration : "") : "Refund paid";
@@ -5211,7 +5344,8 @@ function buildPacket(c) {
   const invoices = vouchers().filter(v => v.type === "sales" && v.f.party === c.id).map(v => ({id: v.id, no: v.no, date: v.date, f: v.f, st: invStatus(v)}));
   const docs = docsOf(c.id).filter(d => d.shared).map(d => d.url ? {id: d.id, name: d.name, url: d.url, cat: d.cat, at: d.at} : {id: d.id, name: d.name, type: d.type, size: d.size, cat: d.cat, at: d.at, n: d.n, key: d.key});
   const client = {...c}; delete client.portal; delete client.notes; delete client.folder;
-  return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs, comp: typeof compPacket === "function" ? compPacket(c) : [], receipts: vouchers().filter(v => isClientRcpt(v) && v.f.party === c.id).map(receiptData).reverse()};
+  return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs, comp: typeof compPacket === "function" ? compPacket(c) : [], receipts: vouchers().filter(v => isClientRcpt(v) && v.f.party === c.id).map(receiptData).reverse(),
+    notes: notesFor(c.entity).slice(0, 8).map(n => ({id: n.id, date: n.date, cat: n.cat, title: n.title, body: n.body, link: n.link || "", pin: !!n.pin})), deadlines: portalDeadlines(c)};
 }
 const portalLink = c => (webOn() ? siteUrl() : VIEWER_URL) + "#c" + c.portal.token;
 function genPw() { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint8Array(12)); let s = ""; for (const x of r) s += A[x % A.length]; return s.slice(0, 4) + "-" + s.slice(4, 8) + "-" + s.slice(8); }
@@ -5315,12 +5449,12 @@ function portalShell() {
     <div><h3 style="margin-bottom:8px">Contact us</h3><dl class="kv">${[["Phone", s.phone], ["Email", s.email], ["Office", [s.addr1, s.addr2].filter(Boolean).join(" · ")], ["GSTIN", s.gstin]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl></div></div>`;
   return `<header class="brandbar"><div class="brand"><div class="mono">PNA</div><div style="min-width:0"><div class="firm">${esc(s.firm)}</div><div class="tag">${esc(s.tagline || "")} · Client portal</div></div></div>
     <div class="actions"><span class="small muted">Updated ${esc(fmtTime(pk.at))}</span><button class="btn" data-act="plock">Lock</button></div></header>
-  <div class="stack" style="margin-top:18px"><div><div class="small muted">Account of</div><h1 style="font-size:22px">${esc(c.name)}</h1>${c.gstin ? `<div class="small muted">GSTIN ${esc(c.gstin)}</div>` : ""}</div>
+  <div class="stack" style="margin-top:18px">${portalHero(pk)}<div><div class="small muted">Account of</div><h1 style="font-size:22px">${esc(c.name)}</h1>${c.gstin ? `<div class="small muted">GSTIN ${esc(c.gstin)}</div>` : ""}</div>
   <div class="grid cols-4"><div class="panel stat hero"><div class="label">${pk.bal < 0 ? "Advance with us" : "Amount payable"}</div><div class="value">${money(Math.abs(pk.bal))}</div><div class="foot">${pk.bal > 0 && pk.age[3] ? money(pk.age[3]) + " older than 90 days" : "As per our books"}</div></div>
     <div class="panel stat"><div class="label">Invoices</div><div class="value">${pk.invoices.length}</div><div class="foot">Total billed ${money(billed)}</div></div>
     <div class="panel stat"><div class="label">Payments & credits</div><div class="value">${money(paid)}</div><div class="foot">Including TDS deducted</div></div>
     <div class="panel stat"><div class="label">Documents</div><div class="value">${pk.docs.length}</div><div class="foot">Shared with you</div></div></div>
-  <div class="panel"><div class="panel-head"><div class="seg">${tabs.map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${S.ptab === k}">${l}</button>`).join("")}</div></div>${body}</div></div>`;
+  <div class="panel"><div class="panel-head"><div class="seg">${tabs.map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${S.ptab === k}">${l}</button>`).join("")}</div></div>${body}</div>${portalFeed(pk)}</div>`;
 }
 function portalInvoice(id) {
   const i = S.pk.invoices.find(x => x.id === id); if (!i) return; const v = {id: i.id, type: "sales", no: i.no, date: i.date, f: i.f}; const m = invoiceModel(v);
@@ -5333,10 +5467,10 @@ function portalInvoice(id) {
 }
 function bindPortal() {
   const app = $("#app"); const f = $("#punlock"); if (f) f.addEventListener("submit", onPortalUnlock);
-  app.onclick = e => { const b = e.target.closest("[data-ptab],[data-pinv],[data-pdoc],[data-act],[data-prcpt]"); if (!b) return; const d = b.dataset;
+  app.onclick = e => { const b = e.target.closest("[data-ptab],[data-pinv],[data-pdoc],[data-act],[data-prcpt],[data-qnav]"); if (!b) return; const d = b.dataset; if (d.qnav) return qnav(b);
     if (d.ptab) { S.ptab = d.ptab; render(); return; } if (d.prcpt) { const r = S.pk.receipts.find(x => x.id === d.prcpt); if (r) { const m = receiptModel(r, S.pk.client); receiptPDF(m).then(b => saveFile(receiptBase(m) + ".pdf", b)).catch(() => toast("Couldn't create the PDF. Check your internet connection.")); } return; } if (d.pinv) return portalInvoice(d.pinv); if (d.pdoc) return downloadDoc(S.pk.docs.find(x => x.id === d.pdoc));
     if (d.act === "pstmt") { if (S.pk.stmtPdf) return saveFile("Statement of Account " + S.pk.client.name + ".pdf", new Blob([unb64(S.pk.stmtPdf)], {type: "application/pdf"})); return exportSpec(specPortalStatement(S.pk), "pdf"); }
-    if (d.act === "plock") { S.locked = true; S.pk = null; S.data = null; closeModal(); render(); } if (d.act === "pcopy") copyText(d.v); };
+    if (d.act === "plock") { S.locked = true; S.pk = null; S.data = null; closeModal(); render(); } if (d.act === "pcopy") copyText(d.v); if (d.act === "pnotes") { S.pAllNotes = !S.pAllNotes; render(); } };
 }
 async function onPortalUnlock(e) {
   e.preventDefault(); const pw = $("#ppw").value; const btn = e.submitter; if (btn) { btn.disabled = true; btn.textContent = "Opening…"; }
@@ -5519,7 +5653,7 @@ async function onUnlock(e) {
   try { let text; if (ONLINE) { const r = await fetchRemote(); if (!r) throw new Error("nodata"); text = r.text; S.online.baseVer = r.md.ver; } else text = await Store.get("vault");
     const o = await unseal(text, pw); Object.assign(S, {key: o.key, salt: o.salt, iter: o.iter, data: o.data, pw, locked: false, lastAct: Date.now(), lockMsg: ""});
     if (permP) await permP; S.saveState = ONLINE ? "Saved online" : "Saved on this Mac" + (ls.get("lastSave") ? " · " + fmtTime(ls.get("lastSave")) : "");
-    if (o.data._migrated) { delete o.data._migrated; persist(); } memo = {}; logEvent("Ledger opened"); if (assignRnos()) persist(); dirty(); schedulePortals();
+    if (o.data._migrated) { delete o.data._migrated; persist(); } memo = {}; logEvent("Ledger opened"); if (assignRnos() | seedNotes()) persist(); dirty(); schedulePortals();
     if (ONLINE) setTimeout(autoBackup, 9000);
     if (ONLINE && S.online.mcp && ST().driveAccount) setTimeout(async () => { try { const me = await driveWhoAmI(); if (me && me !== ST().driveAccount) { const r = await checkDrive(); driveChangedPrompt(r); } } catch {} }, 2500);
   } catch (err) { console.warn(err); const el = $("#pw-err"); if (el) el.textContent = err.message === "badpw" ? "That password doesn't match. Try again." : "Couldn't open the ledger data. Check your connection and try again."; if (btn) { btn.disabled = false; btn.textContent = "Unlock"; } }
