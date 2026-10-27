@@ -1,0 +1,918 @@
+{
+ "schema": 1,
+ "v": "2026-10-27",
+ "verified": "27 Oct 2026",
+ "it": {
+  "fy": "2025-26",
+  "fee": 5000,
+  "feeLow": 1000,
+  "lowLimit": 500000,
+  "int": 1,
+  "aud271B": {
+   "pct": 0.5,
+   "max": 150000
+  },
+  "p270A": {
+   "under": 50,
+   "mis": 200
+  },
+  "due": [
+   [
+    "itr12",
+    "ITR-1 / ITR-2 (no business income)",
+    "2026-07-31",
+    ""
+   ],
+   [
+    "itr34",
+    "ITR-3 / ITR-4 – business, no audit",
+    "2026-08-31",
+    "Finance Act 2026"
+   ],
+   [
+    "audit",
+    "Audit case (tax audit u/s 44AB)",
+    "2026-11-21",
+    "extended by CBDT from 31 Oct 2026"
+   ],
+   [
+    "tp",
+    "Transfer pricing (Form 3CEB)",
+    "2026-11-30",
+    ""
+   ]
+  ]
+ },
+ "tds": {
+  "intLate": 1,
+  "intDep": 1.5,
+  "fee": 200,
+  "pen": [
+   10000,
+   100000
+  ],
+  "reliefMonths": 1
+ },
+ "gst": {
+  "r31": {
+   "per": 50,
+   "nil": 20,
+   "caps": {
+    "s": 2000,
+    "m": 5000,
+    "l": 10000
+   },
+   "nilcap": 500
+  },
+  "r9": [
+   [
+    50000000,
+    50,
+    0.04
+   ],
+   [
+    200000000,
+    100,
+    0.04
+   ],
+   [
+    null,
+    200,
+    0.5
+   ]
+  ],
+  "r4": {
+   "per": 50,
+   "cap": 2000,
+   "nil": 20,
+   "nilcap": 500
+  },
+  "int": 18
+ },
+ "roc": {
+  "fee": [
+   [
+    100000,
+    200
+   ],
+   [
+    500000,
+    300
+   ],
+   [
+    2500000,
+    400
+   ],
+   [
+    10000000,
+    500
+   ],
+   [
+    null,
+    600
+   ]
+  ],
+  "feeNoShare": 200,
+  "perDay": 100,
+  "mult": [
+   [
+    30,
+    2
+   ],
+   [
+    60,
+    4
+   ],
+   [
+    90,
+    6
+   ],
+   [
+    180,
+    10
+   ],
+   [
+    null,
+    12
+   ]
+  ],
+  "mult15": [
+   [
+    15,
+    1
+   ],
+   [
+    30,
+    2
+   ],
+   [
+    60,
+    4
+   ],
+   [
+    90,
+    6
+   ],
+   [
+    180,
+    10
+   ],
+   [
+    null,
+    12
+   ]
+  ],
+  "relax": {
+   "fy": "2025-26",
+   "aoc4": "2026-12-31",
+   "mgt7": "2027-01-31",
+   "ref": "MCA General Circular 05/2026"
+  },
+  "pen": {
+   "base": 10000,
+   "day": 100,
+   "co": 200000,
+   "off": 50000
+  },
+  "dirKyc": 5000,
+  "llpFee": [
+   [
+    100000,
+    50
+   ],
+   [
+    500000,
+    100
+   ],
+   [
+    1000000,
+    150
+   ],
+   [
+    2500000,
+    200
+   ],
+   [
+    10000000,
+    400
+   ],
+   [
+    null,
+    600
+   ]
+  ],
+  "llpMult": {
+   "small": [
+    [
+     15,
+     1
+    ],
+    [
+     30,
+     2
+    ],
+    [
+     60,
+     4
+    ],
+    [
+     90,
+     6
+    ],
+    [
+     180,
+     10
+    ],
+    [
+     360,
+     15
+    ]
+   ],
+   "other": [
+    [
+     15,
+     1
+    ],
+    [
+     30,
+     4
+    ],
+    [
+     60,
+     8
+    ],
+    [
+     90,
+     12
+    ],
+    [
+     180,
+     20
+    ],
+    [
+     360,
+     30
+    ]
+   ]
+  },
+  "f8beyond": {
+   "small": [
+    15,
+    10
+   ],
+   "other": [
+    30,
+    20
+   ]
+  },
+  "f11beyond": {
+   "small": 25,
+   "other": 50
+  }
+ },
+ "inc": {
+  "name": 1000,
+  "nilCap": 1500000,
+  "filing": 500,
+  "small": {
+   "base": 2000,
+   "upto": 5000000,
+   "per": 200
+  },
+  "other": {
+   "base": 36000,
+   "s": [
+    [
+     5000000,
+     300
+    ],
+    [
+     10000000,
+     100
+    ],
+    [
+     null,
+     75
+    ]
+   ],
+   "cap": 25000000
+  },
+  "noShare": {
+   "free": 20,
+   "fee": 5000,
+   "per": 10
+  },
+  "pan": 66,
+  "tan": 65,
+  "runllp": 200,
+  "fillip": [
+   [
+    100000,
+    500
+   ],
+   [
+    500000,
+    2000
+   ],
+   [
+    1000000,
+    4000
+   ],
+   [
+    2500000,
+    5000
+   ],
+   [
+    10000000,
+    10000
+   ],
+   [
+    null,
+    25000
+   ]
+  ],
+  "mcaSched": "MCA ‘Stamp duty rates_SPICeB’, 25 Nov 2024"
+ },
+ "stamp": {
+  "10": {
+   "f": 20,
+   "moa": 500,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "min": 1000,
+    "max": 500000
+   },
+   "ns": [
+    500,
+    1000
+   ],
+   "s8": "nil"
+  },
+  "12": {
+   "f": 10,
+   "moa": 200,
+   "aoa": 500,
+   "ns": [
+    200,
+    500
+   ],
+   "s8": "same"
+  },
+  "13": {
+   "f": 10,
+   "moa": 100,
+   "aoa": 150,
+   "ns": [
+    100,
+    150
+   ],
+   "s8": "same"
+  },
+  "14": {
+   "f": 10,
+   "moa": 100,
+   "aoa": 150,
+   "ns": [
+    100,
+    150
+   ],
+   "s8": "same"
+  },
+  "15": {
+   "f": 10,
+   "moa": 100,
+   "aoa": 150,
+   "ns": [
+    100,
+    150
+   ],
+   "s8": "same"
+  },
+  "16": {
+   "f": 10,
+   "moa": 100,
+   "aoa": 150,
+   "ns": [
+    100,
+    150
+   ],
+   "s8": "same"
+  },
+  "17": {
+   "f": 10,
+   "moa": 100,
+   "aoa": 300,
+   "ns": [
+    100,
+    300
+   ],
+   "s8": "same"
+  },
+  "18": {
+   "f": 15,
+   "moa": 200,
+   "aoa": 310,
+   "ns": [
+    200,
+    310
+   ],
+   "s8": "same"
+  },
+  "19": {
+   "f": 10,
+   "moa": 60,
+   "aoa": 300,
+   "ns": [
+    60,
+    300
+   ],
+   "s8": "nil"
+  },
+  "20": {
+   "f": 5,
+   "moa": 63,
+   "aoa": 105,
+   "ns": [
+    63,
+    105
+   ],
+   "s8": "nil"
+  },
+  "21": {
+   "f": 10,
+   "moa": 300,
+   "aoa": 300,
+   "ns": [
+    300,
+    300
+   ],
+   "s8": "same"
+  },
+  "22": {
+   "f": 10,
+   "moa": 500,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "min": 1000,
+    "max": 500000
+   },
+   "ns": [
+    500,
+    1000
+   ],
+   "s8": "nil"
+  },
+  "23": {
+   "f": 50,
+   "moa": 2500,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "min": 5000,
+    "max": 2500000
+   },
+   "ns": [
+    2500,
+    5000
+   ],
+   "s8": "same"
+  },
+  "24": {
+   "f": 20,
+   "moa": 300,
+   "aoa": {
+    "t": "pct",
+    "p": 0.5,
+    "max": 1500000
+   },
+   "ns": [
+    300,
+    1000
+   ],
+   "s8": "nil",
+   "flag": "AoA cap shown as ₹15 lakh (Gujarat Stamp (Amendment) Act, 2025; MCA's 2024 schedule shows ₹5 lakh) — confirm for large capital."
+  },
+  "26": {
+   "f": 1,
+   "moa": 15,
+   "aoa": 25,
+   "ns": [
+    15,
+    25
+   ],
+   "s8": "nil",
+   "flag": "MCA lists Dadra & Nagar Haveli (shown) and Daman & Diu (₹150 + ₹1,000 per ₹5 lakh) separately — confirm."
+  },
+  "27": {
+   "f": 100,
+   "moa": 200,
+   "aoa": {
+    "t": "per",
+    "a": 1000,
+    "u": 500000,
+    "max": 5000000
+   },
+   "ns": [
+    0,
+    0
+   ],
+   "s8": "nil"
+  },
+  "29": {
+   "f": 20,
+   "moa": 5000,
+   "aoa": {
+    "t": "per",
+    "a": 5000,
+    "u": 1000000,
+    "max": 10000000
+   },
+   "ns": [
+    5000,
+    5000
+   ],
+   "s8": "nil",
+   "flag": "Karnataka raised duty under the Karnataka Stamp (Amendment) Act, 2023; MCA's schedule shows old and new MoA amounts — confirm."
+  },
+  "30": {
+   "f": 50,
+   "moa": 150,
+   "aoa": {
+    "t": "per",
+    "a": 1000,
+    "u": 500000
+   },
+   "ns": [
+    150,
+    1000
+   ],
+   "s8": "nil"
+  },
+  "31": {
+   "f": 25,
+   "moa": 500,
+   "aoa": 1000,
+   "ns": [
+    500,
+    1000
+   ],
+   "s8": "same"
+  },
+  "32": {
+   "f": 25,
+   "moa": 1000,
+   "aoa": {
+    "t": "slab",
+    "s": [
+     [
+      1000000,
+      2000
+     ],
+     [
+      2500000,
+      5000
+     ]
+    ],
+    "e": {
+     "t": "pct",
+     "p": 0.5
+    }
+   },
+   "ns": [
+    1000,
+    2000
+   ],
+   "s8": "same",
+   "flag": "MCA's schedule notes a pending change for Kerala's MoA duty — confirm."
+  },
+  "33": {
+   "f": 20,
+   "moa": 200,
+   "aoa": {
+    "t": "per",
+    "a": 500,
+    "u": 1000000,
+    "max": 500000
+   },
+   "ns": [
+    200,
+    500
+   ],
+   "s8": "nil"
+  },
+  "34": {
+   "f": 10,
+   "moa": 200,
+   "aoa": 300,
+   "ns": [
+    200,
+    300
+   ],
+   "s8": "nil"
+  },
+  "35": {
+   "f": 20,
+   "moa": 200,
+   "aoa": 300,
+   "ns": [
+    200,
+    300
+   ],
+   "s8": "nil"
+  },
+  "36": {
+   "f": 20,
+   "moa": 500,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "min": 1000,
+    "max": 500000
+   },
+   "ns": [
+    500,
+    1000
+   ],
+   "s8": "same"
+  },
+  "37": {
+   "f": 20,
+   "moa": 500,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "min": 1000,
+    "max": 500000
+   },
+   "ns": [
+    500,
+    1000
+   ],
+   "s8": "same"
+  },
+  "38": {
+   "f": 10,
+   "moa": 150,
+   "aoa": {
+    "t": "slab",
+    "s": [
+     [
+      100000,
+      150
+     ]
+    ],
+    "e": 300
+   },
+   "ns": [
+    150,
+    150
+   ],
+   "s8": "nil",
+   "flag": "Ladakh is not listed separately in MCA's schedule — Jammu & Kashmir rates shown."
+  },
+  "07": {
+   "f": 10,
+   "moa": 200,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "max": 2500000
+   },
+   "ns": [
+    200,
+    200
+   ],
+   "s8": "nil"
+  },
+  "06": {
+   "f": 15,
+   "moa": 60,
+   "aoa": {
+    "t": "slab",
+    "s": [
+     [
+      100000,
+      60
+     ]
+    ],
+    "e": 120
+   },
+   "ns": [
+    60,
+    60
+   ],
+   "s8": "nil"
+  },
+  "01": {
+   "f": 10,
+   "moa": 150,
+   "aoa": {
+    "t": "slab",
+    "s": [
+     [
+      100000,
+      150
+     ]
+    ],
+    "e": 300
+   },
+   "ns": [
+    150,
+    150
+   ],
+   "s8": "nil"
+  },
+  "08": {
+   "f": 10,
+   "moa": 500,
+   "aoa": {
+    "t": "pct",
+    "p": 0.15,
+    "min": 5000,
+    "max": 2500000
+   },
+   "ns": [
+    500,
+    500
+   ],
+   "s8": "same",
+   "flag": "MCA's schedule shows both 0.5% and ‘0.15% or ₹5,000, max ₹25 lakh’ for Rajasthan's AoA — the latter is used; confirm."
+  },
+  "03": {
+   "f": 25,
+   "moa": 5000,
+   "aoa": {
+    "t": "slab",
+    "s": [
+     [
+      100000,
+      5000
+     ]
+    ],
+    "e": 10000
+   },
+   "ns": [
+    5000,
+    5000
+   ],
+   "s8": "nil"
+  },
+  "02": {
+   "f": 3,
+   "moa": 60,
+   "aoa": {
+    "t": "slab",
+    "s": [
+     [
+      100000,
+      60
+     ]
+    ],
+    "e": 120
+   },
+   "ns": [
+    60,
+    60
+   ],
+   "s8": "nil"
+  },
+  "04": {
+   "f": 3,
+   "moa": 500,
+   "aoa": 1000,
+   "ns": [
+    500,
+    1000
+   ],
+   "s8": "nil"
+  },
+  "09": {
+   "f": 10,
+   "moa": 500,
+   "aoa": 500,
+   "ns": [
+    500,
+    500
+   ],
+   "s8": "shareonly"
+  },
+  "05": {
+   "f": 10,
+   "moa": 500,
+   "aoa": 500,
+   "ns": [
+    500,
+    500
+   ],
+   "s8": "shareonly"
+  }
+ },
+ "llpStamp": {
+  "10": {
+   "t": "pct",
+   "p": 2.5,
+   "max": 10000
+  },
+  "11": 100,
+  "12": 100,
+  "13": 100,
+  "14": 100,
+  "15": 100,
+  "16": 100,
+  "17": 100,
+  "18": 100,
+  "19": 150,
+  "21": 200,
+  "22": {
+   "t": "slab",
+   "s": [
+    [
+     50000,
+     1000
+    ]
+   ],
+   "e": {
+    "t": "pct",
+    "p": 2,
+    "max": 5000
+   }
+  },
+  "23": {
+   "t": "pct",
+   "p": 2,
+   "min": 2000,
+   "max": 10000
+  },
+  "24": {
+   "t": "pct",
+   "p": 1,
+   "max": 10000
+  },
+  "27": {
+   "t": "slab",
+   "s": [
+    [
+     50000,
+     500
+    ]
+   ],
+   "e": {
+    "t": "pct",
+    "p": 1,
+    "max": 50000
+   }
+  },
+  "30": 150,
+  "32": 5000,
+  "33": 1000,
+  "36": 500,
+  "37": 500,
+  "08": {
+   "t": "per",
+   "a": 2000,
+   "u": 50000,
+   "max": 10000
+  },
+  "07": {
+   "t": "pct",
+   "p": 1,
+   "min": 200,
+   "max": 5000
+  },
+  "06": 1000,
+  "03": 1000,
+  "02": 100,
+  "09": 750,
+  "05": 750
+ },
+ "sources": {
+  "it": [
+   "https://www.incometax.gov.in/iec/foportal/",
+   "https://www.incometaxindia.gov.in/w/what-is-the-penalty-for-not-getting-the-accounts-audited-as-required-by-section-44ab-"
+  ],
+  "tds": [
+   "https://www.incometaxindia.gov.in/w/late-filing-fees-and-penalty-for-failure-to-furnish/delay-in-furnishing-the-tds/tcs-statements%E2%80%8B",
+   "https://cleartax.in/s/tds-and-tcs-changes-from-april-2026"
+  ],
+  "gst": [
+   "https://cbic-gst.gov.in/",
+   "https://taxgarden.in/blog/gst-late-fee-interest-penalty-gstr-3b-gstr-1-gstr-9-guide",
+   "https://taxguru.in/goods-and-service-tax/decoding-newly-inserted-section-74a-cgst-act-2017.html"
+  ],
+  "roc": [
+   "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_ADT-1.pdf",
+   "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction_Kit_LLP_Form_No_11.pdf",
+   "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_LLP%20Form%20No.%208.pdf",
+   "https://taxguru.in/company-law/penalty-non-filing-aoc-4-mgt-7-due-date.html"
+  ],
+  "inc": [
+   "https://www.mca.gov.in/content/mca/global/en/help-faq/faqs/payment2/rates-of-stamp-duty.html",
+   "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_SPICe%20+%20Part%20B.pdf",
+   "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_SPICe+Part%20A.pdf",
+   "https://www.mca.gov.in/content/dam/mca-aem-forms/instructionkits/Instruction%20Kit_Form%20FiLLiP.pdf"
+  ]
+ },
+ "note": "Statutory rates used by the PNA calculators. Change a value only when an official notification/circular/schedule confirms it (plus 2 independent reputable sources). Bump v (YYYY-MM-DD) and verified on every change."
+}
