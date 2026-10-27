@@ -60,7 +60,7 @@ nav.tabs button:hover{color:var(--ink)} nav.tabs button[aria-selected="true"]{co
 .quote{margin:0;position:relative;padding:4px 64px 4px 18px;border-left:2px solid var(--line)}.quote blockquote{margin:0;font-family:"Times New Roman",Georgia,serif;font-size:17px;line-height:1.45;font-style:italic;color:var(--ink)}.quote figcaption{margin-top:6px;font-size:12.5px;color:var(--gold);font-weight:600;letter-spacing:.02em}
 .qnav{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;gap:2px}.qnav .x{font-size:20px;width:28px;height:28px}
 @media (max-width:860px){.hero-strip{grid-template-columns:minmax(0,1fr)}.quote{padding-left:14px}}
-.notes{display:grid;gap:10px}.note{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}.note .nhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.note h4{margin:8px 0 4px;font-size:15px;line-height:1.35}.note p{margin:0 0 6px;font-size:13.5px;color:var(--muted);line-height:1.5}
+.notes{display:grid;gap:10px}.note{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}.note .nhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.note.feed{border-left:3px solid var(--in)}.note .filters a{text-decoration:none}.note h4{margin:8px 0 4px;font-size:15px;line-height:1.35}.note p{margin:0 0 6px;font-size:13.5px;color:var(--muted);line-height:1.5}
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.cal .cw{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:2px 0}
 .cday{position:relative;aspect-ratio:1.15;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;padding:4px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;min-width:0}
 .cday b{font-size:12.5px;font-weight:600}.cday i{font-style:normal;font-size:11px;font-weight:700;color:#fff;border-radius:99px;padding:0 6px;align-self:flex-end;line-height:17px}.cday i.out{background:var(--out)}.cday i.warn{background:var(--warn)}.cday i.in{background:var(--in)}
@@ -5092,39 +5092,36 @@ const allQuotes = () => { const s = ST(); const own = String(s.quotes || "").spl
 const quoteWho = w => w === "@firm" ? ST().firm : w;
 const dayIndex = () => Math.floor(new Date(todayStr() + "T00:00:00").getTime() / 86400000);
 const greet = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
-function quoteHTML(i, id) { const q = allQuotes(); const k = ((i % q.length) + q.length) % q.length; const [t, w] = q[k];
-  return `<figure class="quote" id="${id}"><blockquote>“${esc(t)}”</blockquote><figcaption>— ${esc(quoteWho(w))}</figcaption><div class="qnav"><button type="button" class="x" data-qnav="-1" aria-label="Previous quote">‹</button><button type="button" class="x" data-qnav="1" aria-label="Next quote">›</button></div></figure>`; }
+function quoteHTML(i, id) { const tq = typeof todayQuote === "function" ? todayQuote() : null; const q = tq ? [[tq.text, tq.by, tq.source], ...allQuotes()] : allQuotes(); const base = tq ? i - dayIndex() : i; const k = ((base % q.length) + q.length) % q.length; const [t, w, src] = q[k];
+  return `<figure class="quote" id="${id}"><blockquote>“${esc(t)}”</blockquote><figcaption>— ${esc(quoteWho(w))}${src ? ` <a href="${esc(src)}" target="_blank" rel="noopener" class="small">source ↗</a>` : ""}</figcaption><div class="qnav"><button type="button" class="x" data-qnav="-1" aria-label="Previous quote">‹</button><button type="button" class="x" data-qnav="1" aria-label="Next quote">›</button></div></figure>`; }
 let qOff = 0; function qnav(b) { qOff += +b.dataset.qnav; const f = b.closest(".quote"); if (f) f.outerHTML = quoteHTML(dayIndex() + qOff, f.id); }
 function bindQuote(root) { root.addEventListener("click", e => { const b = e.target.closest("[data-qnav]"); if (!b) return; e.stopPropagation(); qnav(b); }); }
 
-// ----- seeded updates (verified, with sources); the firm edits/adds its own in the Updates panel
-const SEED_NOTES = [
-  {d: "2026-10-24", cat: "MCA / ROC", aud: ["company", "opc"], t: "MCA extends FY 2025-26 annual filing — AOC-4 till 31 Dec 2026, MGT-7/7A till 31 Jan 2027",
-    b: "By General Circular No. 05/2026 dated 24 October 2026, companies can file AOC-4 (all variants) up to 31 December 2026 and MGT-7 / MGT-7A up to 31 January 2027 without additional fees. The AGM due date and ADT-1 are not extended.", l: "https://www.corplawupdates.in/updates/mca-extends-annual-filing-deadlines-fy-2025-26"},
-  {d: "2026-10-08", cat: "GST", aud: [], t: "57th GST Council: no rate change; lighter penalties and faster refunds recommended",
-    b: "The Council recommended removing the power of arrest, raising the prosecution threshold to ₹5 crore, cutting the general penalty to ₹10,000, sanctioning 90% of risk-assessed refunds within 3 working days, and allowing ITC on items such as employee health and life insurance. Most changes take effect only when CBIC notifies them; refund of tax on input services in inverted-duty cases applies to credit availed on or after 1 November 2026.", l: "https://www.canearby.com/blog/57th-gst-council-meeting-8-october-2026"},
-  {d: "2026-10-07", cat: "RBI & banking", aud: [], t: "RBI raises the repo rate by 25 bps to 5.50%",
-    b: "The MPC raised the repo rate to 5.50% with effect from 7 October 2026. Floating-rate loans linked to the repo rate may cost more from their next reset date — worth reviewing EMIs and working-capital limits.", l: "https://www.scconline.com/blog/post/2026/10/09/rbi-hikes-repo-rate-to-5-50-percent-october-2026/"},
-  {d: "2026-10-01", cat: "Income tax", aud: ["company", "opc", "llp", "firm", "trust"], t: "Tax audit date extended to 21 Oct 2026; ITR for audit cases to 21 Nov 2026",
-    b: "CBDT Circular 07/2026 extended the due date for tax audit reports for AY 2026-27 to 21 October 2026 and for returns of income in audit cases to 21 November 2026.", l: "https://taxguru.in/income-tax/cbdt-extends-ay-2026-27-tax-audit-date-21-october-2026.html"},
-  {d: "2026-07-01", cat: "TDS", aud: ["company", "opc", "llp", "firm", "trust"], t: "New TDS / TCS statements from FY 2026-27: Forms 138, 140, 144 and 143",
-    b: "Under the Income-tax Act, 2025, quarterly statements are filed in Form 138 (salary), Form 140 (resident non-salary), Form 144 (non-resident) and Form 143 (TCS). TCS statements now follow the TDS calendar: 31 Jul, 31 Oct, 31 Jan and 31 May.", l: "https://taxguru.in/income-tax/q1-tax-year-2026-27-tds-tcs-return-filing-forms-due-dates.html"},
-  {d: "2026-08-01", cat: "Income tax", aud: ["individual", "huf"], t: "Missed the ITR deadline? Belated return for AY 2026-27 can be filed till 31 Dec 2026",
-    b: "A belated return for AY 2026-27 can still be filed up to 31 December 2026, with late fee and interest; a revised return can be filed up to 31 March 2027. Share your documents early so we can file before the year-end rush.", l: "https://calcguru.in/itr-due-date-ay-2026-27/"},
-];
-function seedNotes() { const s = ST(); if (s.notesSeeded) return false; for (const n of SEED_NOTES) D().notes.push({id: "nt-" + n.d + "-" + n.cat.replace(/\W+/g, "").toLowerCase(), date: n.d, cat: n.cat, aud: n.aud, title: n.t, body: n.b, link: n.l, portal: true, createdAt: nowIso(), updatedAt: nowIso()});
-  s.notesSeeded = true; s.updatedAt = nowIso(); return true; }
+// ----- verified daily feed (feed.json in the portal website, refreshed every morning by a scheduled task; each item confirmed by 3+ sources)
+// cleanup: the hand-seeded notes from the first version are removed unless you edited them
+function seedNotes() { const s = ST(); if (s.seedsCleared) return false; let n = 0;
+  for (const x of D().notes.slice()) if (/^nt-\d{4}-\d{2}-\d{2}-/.test(x.id) && Math.abs(Date.parse(x.updatedAt || 0) - Date.parse(x.createdAt || 0)) < 5000) { removeRec("notes", x.id); n++; }
+  s.seedsCleared = true; s.notesSeeded = true; s.updatedAt = nowIso(); return true; }
+const feedUrl = () => (MODE === "portalweb" ? "" : (typeof siteUrl === "function" ? siteUrl() : "")) + "feed.json";
+async function loadFeed(force) { if (MODE !== "portalweb" && !(typeof webOn === "function" && webOn())) return null; const now = Date.now();
+  if (!force && S.feed && now - S.feed.at < 30 * 60000) return S.feed; if (S.feedLoading) return S.feed; S.feedLoading = true;
+  try { const r = await fetch(feedUrl() + "?t=" + now, {cache: "no-store"}); if (!r.ok) throw 0; const j = await r.json();
+    S.feed = {at: now, updated: j.updated || "", quote: j.quote || null, items: (j.items || []).filter(x => x && x.title && x.link && (x.sources || []).length >= 3)}; }
+  catch { S.feed = {at: now, items: [], quote: null, error: true}; } finally { S.feedLoading = false; } return S.feed; }
+const feedItems = entity => { const hid = new Set((S.data && ST().feedHidden) || []); return ((S.feed && S.feed.items) || []).filter(n => !hid.has(n.id) && (!(n.aud || []).length || !entity || n.aud.includes(entity))); };
+const todayQuote = () => { const q = S.feed && S.feed.quote; return q && q.text && q.date === todayStr() ? q : null; };
 const notesFor = entity => D().notes.filter(n => n.portal !== false && (!(n.aud || []).length || (entity && n.aud.includes(entity)))).sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date));
 const catCls = c => ({"GST": "acc", "Income tax": "warn", "TDS": "warn", "MCA / ROC": "in", "RBI & banking": "", "Firm news": "in", "Tip": ""})[c] || "";
-function noteCard(n, admin) { return `<article class="note"><div class="nhead"><span class="pill ${catCls(n.cat)}">${esc(n.cat)}</span><span class="small muted">${esc(dLong(n.date))}</span>${n.pin ? `<span class="pill">Pinned</span>` : ""}${admin && n.portal === false ? `<span class="pill">Internal</span>` : ""}${admin && (n.aud || []).length ? `<span class="small muted">· for ${esc(n.aud.map(entityName).join(", "))}</span>` : ""}</div>
-  <h4>${esc(n.title)}</h4><p>${esc(n.body)}</p><div class="filters">${n.link ? `<a class="small" href="${esc(n.link)}" target="_blank" rel="noopener">Read more ↗</a>` : ""}${admin ? `<button class="btn sm ghost" data-note="${esc(n.id)}">Edit</button>` : ""}</div></article>`; }
+function noteCard(n, admin) { const fd = (n.sources || []).length; return `<article class="note${fd ? " feed" : ""}"><div class="nhead"><span class="pill ${catCls(n.cat)}">${esc(n.cat)}</span><span class="small muted">${esc(dLong(n.date))}</span>${fd ? `<span class="pill in">✓ Verified from ${fd} sources</span>` : ""}${n.pin ? `<span class="pill">Pinned</span>` : ""}${admin && n.portal === false ? `<span class="pill">Internal</span>` : ""}${admin && (n.aud || []).length ? `<span class="small muted">· for ${esc(n.aud.map(entityName).join(", "))}</span>` : ""}</div>
+  <h4>${esc(n.title)}</h4><p>${esc(n.body)}</p><div class="filters">${n.link ? `<a class="small" href="${esc(n.link)}" target="_blank" rel="noopener"><b>${fd ? "Official source" : "Read more"} ↗</b></a>` : ""}${fd ? (n.sources || []).filter(x => x.url !== n.link).slice(0, 4).map(x => `<a class="small muted" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name || "Source")} ↗</a>`).join("") : ""}${admin && !fd ? `<button class="btn sm ghost" data-note="${esc(n.id)}">Edit</button>` : ""}${admin && fd ? `<button class="btn sm ghost" data-fhide="${esc(n.id)}">Hide from clients</button>` : ""}</div></article>`; }
 
 // ----- dashboard: greeting + quote, updates panel, compliance calendar
 function dashHero() { const td = todayStr(); const open = D().comp.filter(t => led(t.client) && isOpen(t)); const due = open.filter(t => t.due === td).length, over = open.filter(t => t.due < td).length, wk = open.filter(t => t.due > td && t.due <= addDays(td, 7)).length;
   return `<div class="hero-strip"><div><div class="small muted">${esc(new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"}))}</div><h2>${greet()}, ${esc((ST().signatory || "").replace(/^CA\s+/i, "CA "))}</h2>
     <div class="filters" style="margin-top:6px">${over ? `<button class="pill out" data-tab="comp">${over} overdue</button>` : ""}${due ? `<button class="pill warn" data-tab="comp">${due} due today</button>` : ""}<button class="pill" data-tab="comp">${wk} due this week</button>${duesTotal() ? `<button class="pill acc" data-tab="clients">${money(duesTotal())} to collect</button>` : ""}</div></div>${quoteHTML(dayIndex() + qOff, "q-dash")}</div>`; }
-function notesPanel() { if (!ST().notesSeeded && seedNotes()) setTimeout(persist, 50); const list = D().notes.slice().sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date)); const show = S.notesAll ? list : list.slice(0, 4);
-  return `<div class="panel"><div class="panel-head"><h2>Updates &amp; insights</h2><div class="actions"><span class="small muted">Shown on client portals</span><button class="btn sm primary" data-note="new">+ Add</button></div></div>
+function notesPanel() { if (!ST().seedsCleared && seedNotes()) setTimeout(persist, 50); if (!S.feed || Date.now() - S.feed.at > 30 * 60000) loadFeed().then(f => { if (f && S.tab === "dash") dirty(); });
+  const list = [...D().notes, ...feedItems(null)].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date)); const show = S.notesAll ? list : list.slice(0, 4); const f = S.feed;
+  return `<div class="panel"><div class="panel-head"><h2>Updates &amp; insights</h2><div class="actions"><span class="small muted">${f && f.updated ? "Verified feed updated " + esc(fmtTime(f.updated)) : webOn() ? (f && f.error ? "Daily feed not available yet" : "Loading daily feed…") : "Shown on client portals"}</span><button class="btn sm primary" data-note="new">+ Add</button></div></div>
     ${show.length ? `<div class="notes">${show.map(n => noteCard(n, true)).join("")}</div>${list.length > 4 ? `<button class="btn sm ghost" data-act="notesall" style="margin-top:8px">${S.notesAll ? "Show fewer" : "Show all " + list.length}</button>` : ""}` : `<div class="empty"><strong>No updates yet</strong>Share GST, income-tax and MCA changes with your clients — they appear on every client portal.</div>`}</div>`; }
 function noteForm(id) { const n = id && id !== "new" ? D().notes.find(x => x.id === id) : null; const aud = new Set((n && n.aud) || []);
   openModal(`<div class="modal-head"><h2>${n ? "Edit update" : "New update for clients"}</h2><button class="x" data-close aria-label="Close">×</button></div>
@@ -5153,9 +5150,10 @@ function calPanel() { const cal = S.cal; const m = cal.m; const y = +m.slice(0, 
     <div class="legend small" style="margin-top:8px"><span><i style="background:var(--out)"></i>Overdue</span><span><i style="background:var(--warn)"></i>Open</span><span><i style="background:var(--in)"></i>Done</span></div>
     ${sel ? `<div class="calday"><div class="lbl" style="margin:10px 0 6px">${esc(dLong(cal.day))}</div>${sel.map(t => `<button class="crow" data-ccl="${t.client}"><span><b>${esc(compTitle(t))}</b><span class="meta">${esc(lname(t.client))} · ${esc(t.plabel || "")}</span></span>${dueChip(t)}</button>`).join("")}</div>` : `<p class="small muted" style="margin:10px 0 0">${by.size ? "Click a date to see what's due." : "No compliance due this month."}</p>`}</div>`; }
 function bindEngage(root) { if (!root) return; bindQuote(root);
-  root.addEventListener("click", e => { const b = e.target.closest("[data-cday],[data-cmon],[data-note],[data-ccl]"); if (!b) return; const d = b.dataset;
+  root.addEventListener("click", e => { const b = e.target.closest("[data-cday],[data-cmon],[data-note],[data-ccl],[data-fhide]"); if (!b) return; const d = b.dataset;
     if (d.cday) { S.cal.day = S.cal.day === d.cday ? null : d.cday; dirty(); } if (d.cmon) { S.cal.m = addMonths(S.cal.m + "-01", +d.cmon).slice(0, 7); S.cal.day = null; dirty(); }
-    if (d.note) noteForm(d.note); if (d.ccl && b.classList.contains("crow")) compClient(d.ccl); }); }
+    if (d.note) noteForm(d.note); if (d.ccl && b.classList.contains("crow")) compClient(d.ccl);
+    if (d.fhide) { ST().feedHidden = [...new Set([...(ST().feedHidden || []), d.fhide])]; ST().updatedAt = nowIso(); commit(); toast("Hidden from your dashboard and client portals"); } }); }
 
 // ----- portal: deadlines by client type
 function portalDeadlines(c) { const td = todayStr(), lim = addDays(td, 60);
@@ -5167,7 +5165,7 @@ function portalDeadlines(c) { const td = todayStr(), lim = addDays(td, 60);
   const seen = new Set(); return {generic: true, earlier: 0, list: out.sort((a, b) => a.due.localeCompare(b.due)).filter(x => { const k = x.n + x.p; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8)}; }
 function portalHero(pk) { const c = pk.client;
   return `<div class="hero-strip"><div><div class="small muted">${esc(new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"}))}</div><h2>${greet()}${c.contact ? ", " + esc(c.contact) : ""}</h2><div class="small muted" style="margin-top:4px">Your account with ${esc(pk.firm.firm)} — invoices, payments, deadlines and updates in one place.</div></div>${quoteHTML(dayIndex() + qOff, "q-portal")}</div>`; }
-function portalFeed(pk) { const c = pk.client, dl = pk.deadlines || {list: []}; const td = todayStr(); const notes = pk.notes || []; const shown = S.pAllNotes ? notes : notes.slice(0, 3);
+function portalFeed(pk) { const c = pk.client, dl = pk.deadlines || {list: []}; const td = todayStr(); const notes = [...(pk.notes || []), ...feedItems(c.entity)].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date)); const shown = S.pAllNotes ? notes : notes.slice(0, 3);
   return `${dl.list.length || dl.earlier ? `<div class="panel"><div class="panel-head"><h2>Your upcoming deadlines</h2><span class="small muted">${dl.generic ? "Statutory calendar for " + esc(entityName(c.entity)) : "Next 60 days"}</span></div>
     ${dl.list.length ? `<div class="dlcards">${dl.list.map(t => { const n = daysBetween(td, t.due); return `<div class="dlcard ${n <= 7 ? "soon" : ""}"><div class="dln">${n === 0 ? "Today" : n + "<small>day" + (n === 1 ? "" : "s") + " left</small>"}</div><div><b>${esc(t.n)}</b><div class="meta">${esc(t.p)} · due ${esc(dLong(t.due))}</div>${t.st === "docs" ? `<span class="pill warn" style="margin-top:4px">Documents awaited from you</span>` : ""}</div></div>`; }).join("")}</div>` : `<p class="small muted" style="margin:0">Nothing falls due in the next 60 days.</p>`}
     ${dl.earlier ? `<p class="small" style="margin:10px 0 0">${dl.earlier} earlier item${dl.earlier === 1 ? " is" : "s are"} still open — see the <button class="linkish" data-ptab="comp">Compliance</button> tab.</p>` : ""}
@@ -5331,7 +5329,7 @@ function clientDocs(id) {
 }
 
 // ----- portal: what a client sees
-const FIRM_KEYS = ["quotes", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
+const FIRM_KEYS = ["quotes", "feedHidden", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
 function stLabel(v, x) { const f = v.f || {};
   if (v.type === "sales") return "Invoice " + v.no; if (v.type === "receipt") return "Payment received" + (f.mode ? " · " + f.mode : "") + (+f.tds ? " (incl. TDS " + money(f.tds) + ")" : "");
   if (v.type === "payment") return x.dr ? "Paid on your behalf" + (v.narration ? " · " + v.narration : "") : "Refund paid";
@@ -5414,7 +5412,7 @@ async function buildPortalFile(c) {
 function enterPortal(pk) {
   S.pk = pk; S.portalMode = true; S.ptab = S.ptab || "inv";
   S.data = {v: 2, settings: Object.assign(defaultSettings(pk.firm.firm, pk.firm.booksStart, ""), pk.firm, {lockMins: 15}), groups: [], ledgers: [{...pk.client, group: "debtors"}], vouchers: pk.invoices.map(i => ({id: i.id, type: "sales", no: i.no, date: i.date, f: i.f, lines: []})), msgs: [], docs: [], tomb: {}};
-  S.locked = false; memo = {}; render();
+  S.locked = false; memo = {}; render(); if (MODE === "portalweb") loadFeed(true).then(() => { if (S.pk) render(); });
 }
 function portalLock() {
   const firm = (S.portalMeta && S.portalMeta.firm) || "Prarabdh Neema & Associates";
