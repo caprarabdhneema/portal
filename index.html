@@ -2571,7 +2571,7 @@ const DEFAULT_TPL = {
   reminder: "Dear {client},\n\nThis is a gentle reminder that an amount of {due} is outstanding towards our professional fees as on {today}:\n{details}\n\nWe request you to kindly arrange the payment at the earliest. Please ignore this message if the payment has already been made.\n\nPayment details:\n{bank}\n\nWarm regards,\n{signatory}\n{firm}",
   portal: "Dear {client},\n\nYou can now view your account statement, invoices and documents with us online:\n{link}\n\nThe password will be shared with you separately. Please keep it confidential.\n\nWarm regards,\n{signatory}\n{firm}",
   comp: "Dear {client},\n\nPlease find below the compliances due for {entity} in the coming days, along with any pending items:\n{list}\n\nKindly share the required data and documents at the earliest so that we can file them on time and avoid late fees and interest.\n\nWarm regards,\n{signatory}\n{firm}",
-  receipt: "Dear {client},\n\nWe acknowledge with thanks the receipt of {amount} on {date}{tds_text}. Your outstanding balance with us is now {due}.\n\nWarm regards,\n{signatory}\n{firm}",
+  receipt: "Dear {client},\n\nWe acknowledge with thanks the receipt of {amount} on {date}{mode_text}{tds_text}. Our payment receipt no. {receipt_no} is attached for your records.\n\nYour outstanding balance with us is now {due}.\n\nThank you for the prompt payment.\n\nWarm regards,\n{signatory}\n{firm}",
 };
 function newData(firm, start, cash) {
   const t = nowIso(); const led = sysLedgers(t); led[0].opening = r2(cash);
@@ -2618,6 +2618,7 @@ function ensureSys(d) {
   for (const s of sysLedgers(t)) if (!have.has(s.id) && !names.has(s.name.trim().toLowerCase()) && s.sys) d.ledgers.push(s);
   d.settings = Object.assign(defaultSettings(d.settings.firm, d.settings.booksStart, d.settings.updatedAt || t), d.settings);
   d.settings.tpl = Object.assign({...DEFAULT_TPL}, d.settings.tpl || {});
+  if (d.settings.tpl.receipt === "Dear {client},\n\nWe acknowledge with thanks the receipt of {amount} on {date}{tds_text}. Your outstanding balance with us is now {due}.\n\nWarm regards,\n{signatory}\n{firm}") d.settings.tpl.receipt = DEFAULT_TPL.receipt;
   for (const k of COLLS) d[k] = d[k] || []; d.tomb = d.tomb || {};
 }
 
@@ -3283,7 +3284,7 @@ function vDash() {
     <div class="panel stat"><div class="label">Due from clients</div><div class="value">${money(duesTotal())}</div><div class="foot">${cd.length} client${cd.length === 1 ? "" : "s"} · ${money(over90)} over 90 days${payables ? " · you owe " + money(payables) : ""}</div></div>
   </div>
   <div class="quick">${["receipt", "payment", "sales", "contra", "journal"].map(t => `<button class="qbtn" data-new="${t}"><b>${t === "sales" ? "New invoice" : VTYPE[t]}</b><kbd>${VKEY[t]}</kbd></button>`).join("")}<button class="qbtn" data-new="client"><b>Add client</b></button></div>
-  ${backupNotice()}
+  ${backupNotice()}${recurPanel()}
   <div class="grid cols-2">${compDashPanel()}
     <div class="panel"><div class="panel-head"><h2>Money in &amp; out</h2><div class="legend"><span><i style="background:var(--in)"></i>In</span><span><i style="background:var(--out)"></i>Out</span></div></div>${chart(st)}</div></div>
   <div class="grid cols-2">
@@ -3480,13 +3481,13 @@ function vMsgs() {
       return `<tr><td><b>${esc(c.name)}</b><div class="meta">${esc([c.phone, c.email].filter(Boolean).join(" · ") || "No phone or email saved")}</div></td><td class="r num">${money(s.bal)}</td><td>${ageChip(s.oldest)}</td><td class="small muted">${last ? esc(fmtTime(last.at)) + " · " + esc(last.channel) : "—"}</td>
       <td class="r"><div class="actions" style="justify-content:flex-end"><button class="btn sm" data-msg="whatsapp" data-id="${s.id}">WhatsApp</button><button class="btn sm" data-msg="email" data-id="${s.id}">Email</button>${!ONLINE ? `<button class="btn sm" data-msg="sms" data-id="${s.id}">SMS</button>` : ""}</div></td></tr>`; }).join("")}</tbody></table></div>`
     : `<div class="empty"><strong>No pending dues</strong>Clients with an outstanding balance appear here with one-click WhatsApp and email reminders.</div>`;
-  if (S.msgTab === "tpl") { const t = ST().tpl; body = `<form id="tpl-form" class="stack"><p class="small muted" style="margin:0">Placeholders: {client} {invoice_no} {invoice_date} {amount} {service} {due_date} {due} {details} {today} {date} {tds_text} {bank} {link} {list} {entity} {signatory} {firm}</p>
+  if (S.msgTab === "tpl") { const t = ST().tpl; body = `<form id="tpl-form" class="stack"><p class="small muted" style="margin:0">Placeholders: {client} {invoice_no} {invoice_date} {amount} {service} {due_date} {due} {details} {today} {date} {tds_text} {bank} {link} {list} {entity} {receipt_no} {mode_text} {signatory} {firm}</p>
     ${[["invoice", "Invoice message"], ["reminder", "Payment reminder"], ["receipt", "Payment received (thank you)"], ["portal", "Client portal invitation"], ["comp", "Compliance reminder"]].map(([k, l]) => `<div class="field"><label class="lbl" for="tpl-${k}">${l}</label><textarea id="tpl-${k}" rows="8">${esc(t[k])}</textarea></div>`).join("")}
     <div class="actions"><button class="btn primary" type="submit">Save templates</button><button class="btn" type="button" data-act="tplreset">Restore defaults</button></div></form>`; }
   if (S.msgTab === "log") { const ms = D().msgs.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 300);
     body = ms.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>When</th><th>Client</th><th>Channel</th><th>Message</th><th>Status</th></tr></thead><tbody>${ms.map(m => `<tr><td class="small num">${esc(fmtTime(m.at))}</td><td>${esc(lname(m.client))}</td><td>${esc(m.channel)}</td><td class="small">${esc(m.subject || m.kind)}</td><td><span class="pill ${m.status === "Sent" ? "in" : ""}">${esc(m.status)}</span></td></tr>`).join("")}</tbody></table></div>`
       : `<div class="empty"><strong>Nothing sent yet</strong>Invoices, reminders and receipts you send by WhatsApp or email are listed here.</div>`; }
-  return `<div class="panel"><div class="panel-head">${seg}<span class="small muted">${ONLINE ? "Email goes out from your Gmail with the invoice PDF attached." : "Email opens in your Mail app; WhatsApp opens in a new window."}</span></div>${body}</div>`;
+  return `<div class="panel"><div class="panel-head">${seg}<div class="actions"><span class="small muted">${ONLINE ? "Email goes out from your Gmail with the PDF attached." : "Email opens in your Mail app; WhatsApp opens in a new window."}</span>${ONLINE && S.msgTab === "remind" && cd.length ? `<button class="btn sm primary" data-act="bulkremind">Email all with statements</button>` : ""}</div></div>${body}</div>`;
 }
 
 // ----- Settings
@@ -3590,7 +3591,7 @@ document.addEventListener("click", e => {
   if (a === "newmenu") { if (menu) menu.hidden = !menu.hidden; return; }
   if (a === "lock") return lock(); if (a === "editled") return ledgerForm(led(d.id)); if (a === "newgroup") return groupForm(null);
   if (a === "xlsall") return exportAll(); if (a === "backup") return doBackup(); if (a === "restore") return restoreFlow(); if (a === "linkfile") return linkFile();
-  if (a === "bulkdrive") return bulkCreateFolders(el); if (a === "comptask") return compEdit(null);
+  if (a === "bulkdrive") return bulkCreateFolders(el); if (a === "bulkremind") return bulkRemind(); if (a === "recurall") return recurCreateAll(el); if (a === "comptask") return compEdit(null);
   if (a === "savestaff") { ST().staff = ($("#cs-staff").value || "").split(",").map(x => x.trim()).filter(Boolean); ST().updatedAt = nowIso(); commit(); toast("Team saved"); return; }
   if (a === "drvbackup") return driveBackupNow(el); if (a === "logxls") return exportLog();
   if (a === "drvcheck") return driveCheckFlow(el); if (a === "drvswitch") return driveSwitchFlow(); if (a === "drvroot") return driveRootFlow(); if (a === "drvsubs") return driveSubsFlow();
@@ -3703,7 +3704,7 @@ function voucherForm(type, v, preset) {
     <form id="v-form" novalidate>${!v ? `<div class="seg" style="margin-bottom:14px">${["receipt", "payment", "contra", "journal"].map(t => `<button type="button" data-vt="${t}" aria-pressed="${t === type}">${VTYPE[t]}</button>`).join("")}</div>` : ""}
     <div class="formgrid" id="v-fields">${fields()}</div><div class="err" id="v-err" style="margin-top:10px"></div>
     ${v && v.updatedAt ? `<p class="small muted">Last changed ${esc(fmtTime(v.updatedAt))}</p>` : ""}
-    <div class="modal-foot">${v ? `<button type="button" class="btn danger" id="v-del">Delete</button>` : "<span></span>"}<div class="right"><button type="button" class="btn" data-close>Cancel</button>${!v ? `<button type="submit" class="btn" data-again="1">Save &amp; next</button>` : ""}<button type="submit" class="btn primary">Save</button></div></div></form>`);
+    <div class="modal-foot"><div class="actions">${v ? `<button type="button" class="btn danger" id="v-del">Delete</button>` : ""}${isClientRcpt(v) ? `<button type="button" class="btn" id="v-rpdf">Receipt PDF</button><button type="button" class="btn" id="v-ack">Send acknowledgement</button>` : ""}</div><div class="right"><button type="button" class="btn" data-close>Cancel</button>${!v ? `<button type="submit" class="btn" data-again="1">Save &amp; next</button>` : ""}<button type="submit" class="btn primary">Save</button></div></div></form>`);
   const wire = () => { const tdsT = () => { const w = $("#tds-wrap"); if (w) { const g = pickerGroup("v-party"); w.hidden = !(g && g.client); } };
     bindPicker("v-party", tdsT); bindPicker("v-acct"); bindPicker("v-to"); tdsT();
     const rb = $("#v-rb"); if (rb) { const attWire = () => { const a = $("#v-ra"); if (a) a.addEventListener("click", () => { const i = document.createElement("input"); i.type = "file"; i.accept = "application/pdf,image/*"; i.onchange = () => { if (!i.files[0]) return; rfile = i.files[0]; if (f.receipt) f.receiptOld = f.receipt; f.receipt = null; $("#v-rc").innerHTML = rcHTML(); attWire(); }; i.click(); }); }; attWire();
@@ -3743,7 +3744,8 @@ function voucherForm(type, v, preset) {
           if (!cl.length) throw new Error("Debit the client in this journal (Dr client, Cr whoever paid the fee)."); if (cl.length > 1) throw new Error("Use a separate journal for each client's government fee."); nf.client = cl[0]; } }
     } catch (x) { err.textContent = x.message; return; }
     creates.forEach(c => upsert("ledgers", c)); if (creates.length) setTimeout(() => autoDriveFor(creates.map(c => c.id)), 1500);
-    if (v && v.f) for (const k of ["linkInv", "receipt", "byInv"]) if (v.f[k] != null && nf[k] == null) nf[k] = v.f[k];
+    if (v && v.f) for (const k of ["linkInv", "receipt", "byInv", "rno"]) if (v.f[k] != null && nf[k] == null) nf[k] = v.f[k];
+    if (type === "receipt" && isClient(led(nf.party)) && !nf.rno) { assignRnos(); nf.rno = nextRcptNo(date); } if (type !== "receipt") delete nf.rno;
     if (rfile) delete nf.receipt;
     const narr = g("v-narr") || (isRb ? nf.rdesc + (nf.rref ? " · " + nf.rref : "") + " (reimbursable)" : "");
     const rec = Object.assign(v ? {...v} : {id: uid(), createdAt: nowIso()}, {type, date, f: nf, ref: g("v-ref"), narration: narr}); rec.lines = buildLines(rec); upsert("vouchers", rec);
@@ -3754,6 +3756,8 @@ function voucherForm(type, v, preset) {
     if (isRb && rfile) setTimeout(() => uploadVoucherReceipt(rec.id, rfile), creates.length ? 400 : 0);
     if (again) voucherForm(type, null, {date, acct: nf.acct, mode: nf.mode});
     else if (type === "receipt" && isClient(led(nf.party)) && !v) receiptFollowUp(rec); else closeModal(); });
+  const rp = $("#v-rpdf"); if (rp) rp.addEventListener("click", async () => { const fl = await receiptFile(vById(v.id)); await saveFile(fl.name, fl.data); });
+  const ak = $("#v-ack"); if (ak) ak.addEventListener("click", () => receiptFollowUp(vById(v.id)));
   const del = $("#v-del"); if (del) del.addEventListener("click", () => { if (!del.dataset.c) { del.dataset.c = 1; del.textContent = "Confirm delete"; return; }
     if (v.f && v.f.linkInv && vById(v.f.linkInv)) { const iv0 = vById(v.f.linkInv); const f2 = JSON.parse(JSON.stringify(iv0.f)); f2.reimb = (f2.reimb || []).filter(x => x.vid !== v.id); const iv2 = {...iv0, f: f2}; iv2.lines = buildLines(iv2); upsert("vouchers", iv2); }
     removeRec("vouchers", v.id); commit(); closeModal(); toast("Voucher deleted"); });
@@ -3766,9 +3770,13 @@ async function uploadVoucherReceipt(vid, file) {
     upsert("docs", {id: "d-" + uid(), client: c.id, name: rc.name.replace(/\.[a-z0-9]+$/i, ""), url: rc.url, cat: "Govt Fee Receipts", shared: true, driveId: rc.id, at: nowIso()}); commit();
     toast("Receipt saved in " + c.name + " › Shared with Client › Govt Fee Receipts");
   } catch (e) { console.warn(e); toast("Receipt not saved: " + driveErr(e)); } }
-function receiptFollowUp(v) { const c = led(v.f.party);
-  openModal(`<div class="modal-head"><h2>Receipt saved</h2><button class="x" data-close aria-label="Close">×</button></div><p>${money(v.f.amount)} received from <b>${esc(c.name)}</b>${+v.f.tds ? " (TDS " + money(v.f.tds) + ")" : ""}. Send a thank-you acknowledgement?</p>
-    <div class="modal-foot"><span></span><div class="right"><button class="btn" data-close>Not now</button><button class="btn" id="rf-wa">WhatsApp</button><button class="btn primary" id="rf-em">Email</button></div></div>`);
+function receiptFollowUp(v) { const c = led(v.f.party); v = ensureRno(v); const rd = receiptData(v);
+  openModal(`<div class="modal-head"><div><div class="small muted">Receipt ${esc(v.f.rno || "")}</div><h2>${money(rd.total)} received from ${esc(c.name)}</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+    <dl class="kv">${rd.alloc.map(a => `<dt>${esc(a.label)}</dt><dd>${money(a.amt)} adjusted</dd>`).join("")}${rd.advance > 0 ? `<dt>Advance</dt><dd>${money(rd.advance)}</dd>` : ""}<dt>Balance now</dt><dd><b>${rd.balAfter > 0 ? money(rd.balAfter) + " due" : rd.balAfter < 0 ? money(-rd.balAfter) + " advance" : "Nil – fully settled"}</b></dd></dl>
+    <p class="small muted">Send a thank-you acknowledgement with the payment receipt (PDF) attached.</p>
+    <div class="modal-foot"><div class="actions"><button class="btn" id="rf-pdf">Receipt PDF</button>${canShareFiles() ? `<button class="btn" id="rf-share">Share PDF…</button>` : ""}</div><div class="right"><button class="btn" data-close>Not now</button><button class="btn" id="rf-wa">WhatsApp</button><button class="btn primary" id="rf-em">Email with receipt</button></div></div>`);
+  $("#rf-pdf").addEventListener("click", async () => { const fl = await receiptFile(v); await saveFile(fl.name, fl.data); });
+  const sh = $("#rf-share"); if (sh) sh.addEventListener("click", async () => { const fl = await receiptFile(v); await shareFile(fl, fillTpl(ST().tpl.receipt || DEFAULT_TPL.receipt, msgVars({client: c.id, kind: "receipt", v}))); logMsg({client: c.id, kind: "receipt", v}, "Share", "Shared"); });
   $("#rf-wa").addEventListener("click", () => compose("whatsapp", {client: c.id, kind: "receipt", v})); $("#rf-em").addEventListener("click", () => compose("email", {client: c.id, kind: "receipt", v})); }
 
 // ----- invoice form
@@ -3806,13 +3814,14 @@ function invoiceForm(v, preset) {
       <div class="field"><label class="lbl" for="i-income">Credit income to</label><select id="i-income">${incomeOpts}</select></div>
       <div class="field span2"><label class="lbl" for="i-notes">Notes on invoice (optional)</label><input id="i-notes" value="${esc(f0.notes || "")}" placeholder="e.g. Period: April to September 2026"></div>
       <label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="i-round" style="width:auto" ${f0.roundOff ? "checked" : ""}> Round off the total to the nearest rupee</label>
+      <label class="small span2" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="i-recur" style="width:auto" ${f0.recur ? "checked" : ""}> Repeat this invoice every month (retainers) — next month's invoice is prepared for you on the dashboard</label>
       <div class="span2 itotal" id="i-total"></div></div>
     <div class="err" id="i-err" style="margin-top:10px"></div>
     <div class="modal-foot">${v ? `<button type="button" class="btn danger" id="i-del">Delete</button>` : "<span></span>"}<div class="right"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">${v ? "Save" : "Save & preview"}</button></div></div></form>`, "wide");
   const readReimb = () => $$(".rrow").map(r => ({desc: $(".r-desc", r).value.trim(), ref: $(".r-ref", r).value.trim(), paidOn: $(".r-date", r).value, acct: $(".r-acct", r).value, amount: r2($(".r-amt", r).value),
     vid: r.dataset.vid || "", locked: !!r.dataset.locked, receipt: r.dataset.rc ? JSON.parse(r.dataset.rc) : null, _el: r})).filter(x => x.desc || x.amount);
   const read = () => ({items: $$(".irow").map(r => ({desc: $(".i-desc", r).value.trim(), sac: $(".i-sac", r).value === "__other" ? $(".i-sac-o", r).value.trim() : $(".i-sac", r).value, amount: r2($(".i-amt", r).value)})).filter(x => x.desc || x.amount),
-    reimb: readReimb().map(({_el, ...x}) => x), rate: +$("#i-rate").value, supply: $("#i-supply").value, roundOff: $("#i-round").checked, dueDate: $("#i-due").value, notes: $("#i-notes").value.trim(), income: $("#i-income").value});
+    reimb: readReimb().map(({_el, ...x}) => x), rate: +$("#i-rate").value, supply: $("#i-supply").value, roundOff: $("#i-round").checked, recur: $("#i-recur").checked, chain: f0.chain || "", dueDate: $("#i-due").value, notes: $("#i-notes").value.trim(), income: $("#i-income").value});
   const calc = () => { const iv = calcInvoice(read()); $("#i-total").innerHTML = `<span>Taxable ${money(iv.taxable)}</span>${iv.cgst ? `<span>CGST ${money(iv.cgst)}</span><span>SGST ${money(iv.sgst)}</span>` : ""}${iv.igst ? `<span>IGST ${money(iv.igst)}</span>` : ""}${iv.reimb ? `<span>Govt fees &amp; expenses ${money(iv.reimb)}</span>` : ""}${iv.round ? `<span>Round off ${money(iv.round)}</span>` : ""}<b>Total ${money(iv.grand)}</b><span class="muted">${esc(inWords(iv.grand))}</span>`;
     $("#i-rate").disabled = ["export", "nogst"].includes($("#i-supply").value); };
   const unbilled = () => { const box = $("#r-unbilled"); const c = ledByName($("#i-party").value); if (!c) { box.innerHTML = ""; return; }
@@ -3851,6 +3860,7 @@ function invoiceForm(v, preset) {
         f: {party: nf.party, acct: x.acct, amount: x.amount, mode: (pv && pv.f.mode) || "Online", byInv: invId, linkInv: invId, reimb: true, receipt: x.receipt || null}}); }
       pv.lines = buildLines(pv); upsert("vouchers", pv); keep.add(pv.id); nf.reimb[k].vid = pv.id; x.vid = pv.id; });
     for (const old of f0.reimb) { if (!old.vid || keep.has(old.vid)) continue; const pv = vById(old.vid); if (!pv) continue; if (pv.f.byInv === invId) removeRec("vouchers", pv.id); else { const f2 = {...pv.f}; delete f2.linkInv; upsert("vouchers", {...pv, f: f2}); } }
+    if (nf.recur && !nf.chain) nf.chain = invId; if (!nf.recur) delete nf.recur;
     const rec = Object.assign(v ? {...v} : {id: invId, createdAt: nowIso()}, {id: invId, type: "sales", date, no, f: nf, narration: nf.items.map(x => x.desc).join("; ")}); rec.lines = buildLines(rec); upsert("vouchers", rec); commit();
     toast((v ? "Invoice updated: " : "Invoice saved: ") + no + " · " + money(calcInvoice(nf).grand)); invoiceView(vById(rec.id));
     const pending = rows.map((x, k) => ({x, k, file: files.get(x._el)})).filter(p => p.file);
@@ -3901,25 +3911,28 @@ function msgVars0(ctx) { const s = ST(), c = led(ctx.client) || {}, cd = clientD
     details: cd.debits.filter(d => d.due > 0).map(d => `• ${d.kind === "invoice" ? "Invoice " + d.v.no : d.kind === "opening" ? "Previous balance" : "Amount paid on your behalf"} dated ${dmy(d.date)}: ${money(d.due)}`).join("\n")};
   if (v && v.type === "sales") { const iv = calcInvoice(v.f); Object.assign(vars, {invoice_no: v.no, invoice_date: dLong(v.date), amount: money(iv.grand), service: (v.f.items || []).map(x => x.desc).join(", "), due_date: v.f.dueDate ? dLong(v.f.dueDate) : "the due date"}); }
   if (c.portal && c.portal.on) Object.assign(vars, {link: portalLink(c), password: c.portal.pw});
-  if (v && v.type === "receipt") Object.assign(vars, {amount: money(v.f.amount), date: dLong(v.date), tds_text: +v.f.tds ? " (TDS of " + money(v.f.tds) + " deducted)" : ""});
+  if (v && v.type === "receipt") Object.assign(vars, {amount: money(v.f.amount), date: dLong(v.date), tds_text: +v.f.tds ? " (TDS of " + money(v.f.tds) + " deducted)" : "", receipt_no: v.f.rno || "", mode_text: v.f.mode ? " by " + v.f.mode + (v.ref ? " (ref. " + v.ref + ")" : "") : ""});
   return vars; }
 function logMsg(ctx, channel, status, subject) { upsert("msgs", {id: uid(), at: nowIso(), client: ctx.client, kind: ctx.kind, channel, status, subject: subject || (ctx.v ? (ctx.v.no || VTYPE[ctx.v.type]) : ""), ref: ctx.v ? ctx.v.id : ""}); commit(); }
 function compose(channel, ctx) {
+  if (ctx.kind === "receipt" && isClientRcpt(ctx.v)) { ctx.v = ensureRno(ctx.v); if (!ctx.file) { const v0 = ctx.v; ctx.file = {label: "Attach payment receipt " + (v0.f.rno || "") + " (PDF)", make: () => receiptFile(v0)}; } }
+  if (ctx.kind === "reminder" && !ctx.file && led(ctx.client)) { const c0 = led(ctx.client); ctx.file = {label: "Attach statement of account (PDF)", make: async () => ({name: ("Statement of Account " + c0.name + " " + todayStr()).replace(/[\\/:*?"<>|]+/g, "-") + ".pdf", data: await reportPDF(specLedger(c0.id, fyOf(todayStr())))})}; }
   const c = led(ctx.client) || {}; const s = ST(); const vars = msgVars(ctx); const tpl = ctx.kind === "blank" ? "Dear {client},\n\n\n\nWarm regards,\n{signatory}\n{firm}" : s.tpl[ctx.kind] || DEFAULT_TPL[ctx.kind] || "";
   const tplX = ctx.kind === "portalpw" ? "Dear {client},\n\nYour password for the {firm} client portal is: {password}\n\nPlease keep it confidential.\n\nRegards,\n{signatory}" : tpl;
-  const text = fillTpl(ctx.text != null ? ctx.text : tplX, vars); const subj = ctx.subject ? ctx.subject : ctx.kind === "comp" ? `Upcoming compliance due dates – ${s.firm}` : ctx.kind === "portal" ? `Your client portal – ${s.firm}` : ctx.kind === "invoice" ? `Invoice ${vars.invoice_no} from ${s.firm}` : ctx.kind === "reminder" ? `Payment reminder – ${s.firm}` : ctx.kind === "receipt" ? `Payment received – thank you` : s.firm;
+  const text = fillTpl(ctx.text != null ? ctx.text : tplX, vars); const subj = ctx.subject ? ctx.subject : ctx.kind === "comp" ? `Upcoming compliance due dates – ${s.firm}` : ctx.kind === "portal" ? `Your client portal – ${s.firm}` : ctx.kind === "invoice" ? `Invoice ${vars.invoice_no} from ${s.firm}` : ctx.kind === "reminder" ? `Payment reminder – ${s.firm}` : ctx.kind === "receipt" ? `Payment received${ctx.v && ctx.v.f.rno ? " – Receipt " + ctx.v.f.rno : ""} – thank you` : s.firm;
   const attach = (ctx.kind === "invoice" && ctx.v) || ctx.file; const makeAtt = () => ctx.file ? ctx.file.make() : invoiceFile(ctx.v, "pdf");
   if (channel === "whatsapp" || channel === "sms") {
     const num = waNumber(c.whatsapp || c.phone);
     const root = openModal(`<div class="modal-head"><h2>${channel === "sms" ? "SMS" : "WhatsApp"} · ${esc(c.name)}</h2><button class="x" data-close aria-label="Close">×</button></div>
       <div class="stack"><div class="field"><label class="lbl" for="m-num">Mobile number</label><input id="m-num" value="${esc(c.whatsapp || c.phone || "")}" inputmode="tel" placeholder="10-digit mobile number"></div>
       <div class="field"><label class="lbl" for="m-text">Message</label><textarea id="m-text" rows="12">${esc(text)}</textarea></div>
-      ${attach ? `<p class="small muted" style="margin:0">WhatsApp can't attach files from a link. Download the PDF first, then attach it in the chat.</p>` : ""}</div>
-      <div class="modal-foot">${attach ? `<button class="btn" id="m-pdf">Download PDF</button>` : "<span></span>"}<div class="right"><button class="btn" id="m-copy">Copy text</button><a class="btn primary" id="m-go" target="_blank" rel="noopener" href="#">Open ${channel === "sms" ? "Messages" : "WhatsApp"}</a></div></div>`);
+      ${attach ? `<p class="small muted" style="margin:0">${canShareFiles() ? "“Share PDF” opens your share menu — choose WhatsApp to send the PDF with this message. Or open the chat and attach the downloaded PDF." : "WhatsApp can't attach files from a link: download the PDF, open the chat, then attach it."}</p>` : ""}</div>
+      <div class="modal-foot"><div class="actions">${attach ? `<button class="btn" id="m-pdf">Download PDF</button>${canShareFiles() ? `<button class="btn" id="m-share">Share PDF…</button>` : ""}` : ""}</div><div class="right"><button class="btn" id="m-copy">Copy text</button><a class="btn primary" id="m-go" target="_blank" rel="noopener" href="#">Open ${channel === "sms" ? "Messages" : "WhatsApp"}</a></div></div>`);
     const upd = () => { const n = waNumber($("#m-num").value), t = $("#m-text").value; $("#m-go").href = channel === "sms" ? `sms:${n ? "+" + n : ""}?&body=${encodeURIComponent(t)}` : `https://wa.me/${n}?text=${encodeURIComponent(t)}`; };
     $("#m-num").addEventListener("input", upd); $("#m-text").addEventListener("input", upd); upd();
     $("#m-go").addEventListener("click", () => { if (!waNumber($("#m-num").value)) { toast("Enter the client's mobile number."); } logMsg(ctx, channel === "sms" ? "SMS" : "WhatsApp", "Opened"); if ($("#m-num").value && !c.phone && !c.whatsapp) { c.phone = $("#m-num").value.trim(); upsert("ledgers", c); commit(); } });
     $("#m-copy").addEventListener("click", () => copyText($("#m-text").value)); const pdf = $("#m-pdf"); if (pdf) pdf.addEventListener("click", async () => { const fl = await makeAtt(); await saveFile(fl.name, fl.data); });
+    const shb = $("#m-share"); if (shb) shb.addEventListener("click", async () => { const fl = await makeAtt(); await shareFile(fl, $("#m-text").value); logMsg(ctx, "WhatsApp", "Shared with PDF"); });
     return; }
   const root = openModal(`<div class="modal-head"><h2>Email · ${esc(c.name)}</h2><button class="x" data-close aria-label="Close">×</button></div>
     <div class="formgrid"><div class="field"><label class="lbl" for="m-to">To</label><input id="m-to" type="email" value="${esc(c.email || "")}" placeholder="client@example.com"></div><div class="field"><label class="lbl" for="m-cc">Cc</label><input id="m-cc" value="${esc(s.email || "")}"></div>
@@ -4930,6 +4943,104 @@ function specHTML(spec) { return `<div class="panel"><div class="panel-head"><di
   ${spec.notes ? `<p class="small muted" style="margin-top:12px">${spec.notes.map(esc).join(" ")}</p>` : ""}</div>`; }
 REPS.push(["mis", "MIS"], ["compr", "Compliance"]); Object.assign(REPORT_SPECS, {mis: () => specMIS(S.fy), compr: () => specComp(S.fy)});
 
+// ================= Payment receipts (acknowledgement of fees received) + sharing helpers =================
+const isClientRcpt = v => v && v.type === "receipt" && isClient(led(v.f.party));
+function nextRcptNo(date) { const fy = fyOf(date || todayStr()); const pre = lPrefix() + "/RCT/" + fyLabel(fy) + "/"; let n = 0;
+  for (const v of D().vouchers) if (v.type === "receipt" && v.f && v.f.rno && v.f.rno.startsWith(pre)) n = Math.max(n, +(v.f.rno.slice(pre.length)) || 0); return pre + String(n + 1).padStart(3, "0"); }
+function ensureRno(v) { if (!isClientRcpt(v) || v.f.rno) return v; if (assignRnos()) { persist(); const r = vById(v.id); if (r && r.f.rno) return r; } const nv = {...v, f: {...v.f, rno: nextRcptNo(v.date)}}; upsert("vouchers", nv); commit(); return nv; }
+// FIFO: which bills this receipt settles, any advance, and the client's balance right after it
+function receiptData(v) { const cid = v.f.party, c = led(cid) || {}; const cd = clientDues().get(cid) || {debits: [], opening: 0};
+  const debits = cd.debits.map(d => ({label: d.kind === "invoice" ? "Invoice " + d.v.no : d.kind === "opening" ? "Opening balance" : (d.v && d.v.narration) || "Paid on your behalf", date: d.date, left: d.amt}));
+  let pool = cd.opening < 0 ? -cd.opening : 0; for (const d of debits) { const a = Math.min(pool, d.left); d.left = r2(d.left - a); pool = r2(pool - a); }
+  let run = r2(c.opening || 0), mine = null, alloc = [];
+  for (const x of vouchers()) { for (const ln of x.lines || []) { if (ln.l !== cid) continue; run = r2(run + ln.dr - ln.cr); if (!ln.cr) continue;
+      let amt = ln.cr; const got = []; for (const d of debits) { if (amt <= 0) break; if (d.left <= 0) continue; const a = Math.min(amt, d.left); d.left = r2(d.left - a); amt = r2(amt - a); got.push({label: d.label, date: d.date, amt: r2(a)}); }
+      if (x.id === v.id) { alloc = got; mine = {advance: r2(amt), balAfter: run}; } }
+    if (x.id === v.id && mine) break; }
+  const tds = r2(v.f.tds), amount = r2(v.f.amount);
+  return {id: v.id, rno: v.f.rno || "", date: v.date, amount, tds, total: r2(amount + tds), mode: v.f.mode || "", ref: v.ref || "", acct: lname(v.f.acct), narration: v.narration || "", alloc, advance: mine ? mine.advance : 0, balAfter: mine ? mine.balAfter : 0, client: cid}; }
+function receiptModel(rd, c) { const s = ST(); c = c || led(rd.client) || {};
+  const auth = authFor("RCT", [rd.rno || rd.id, rd.date, c.gstin || c.name || "", rd.total.toFixed(2)], ["Payment receipt " + rd.rno + " dated " + dmy(rd.date), "Received from " + (c.name || "") + (c.gstin ? " (" + c.gstin + ")" : ""), "Amount INR " + amt(rd.total)]);
+  const notes = []; if (/cheque/i.test(rd.mode)) notes.push("Receipt by cheque is subject to realisation.");
+  if (rd.tds) notes.push("TDS of Rs. " + amt(rd.tds) + " is credited to your account on the understanding that it will be deposited and reflected in our Form 26AS; kindly share the TDS certificate (Form 16A).");
+  if (rd.advance > 0) notes.push("Rs. " + amt(rd.advance) + " is held as an advance and will be adjusted against future invoices" + (s.gstin ? "; GST on it, where applicable, will be accounted for on issue of the invoice." : "."));
+  notes.push("This is a computer-generated receipt and does not require a physical signature.");
+  const addr = [c.address, [c.city, c.stateCode ? stateName(c.stateCode) : ""].filter(Boolean).join(", ")].filter(Boolean).join("\n");
+  return {s, c, rd, auth, addr, notes, words: inWords(rd.total), meta: [["Receipt no.", rd.rno || "—"], ["Date", dLong(rd.date)], ["Mode", rd.mode || "—"], ...(rd.ref ? [["UTR / ref.", rd.ref]] : []), ["Credited to", rd.acct]]}; }
+const receiptBase = m => ("Receipt " + (m.rd.rno || "") + " " + (m.c.name || "")).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
+function drawReceipt(R, m) { const s = m.s, L = 14, RX = 196, wrap = (t, w, sz, b) => wrapText(R, t, w, sz, b);
+  let y = drawLetterhead(R, s, 210, firmIds()); y += 8; R.text("P A Y M E N T   R E C E I P T", 105, y, {size: 12.5, bold: true, color: NAVY, align: "center"}); R.text("Original", RX, y - 1, {size: 7, color: MUTED, align: "right"}); y += 5;
+  const left = [["lbl", "RECEIVED WITH THANKS FROM"], ["name", m.c.name || ""]]; for (const ln of wrap(m.addr, 100, 8.5)) if (ln) left.push(["t", ln]); if (m.c.gstin) left.push(["b", "GSTIN: " + m.c.gstin]); if (m.c.pan) left.push(["t", "PAN: " + m.c.pan]);
+  const lh = 4.4, bh = Math.max(left.length, m.meta.length) * lh + 6, cx = L + 108; R.rect(L, y, RX - L, bh, {stroke: LINE, w: 0.3}); R.line(cx, y, cx, y + bh, {color: LINE, w: 0.3});
+  let ly = y + 5; for (const [k, t] of left) { R.text(t, L + 3, ly, k === "lbl" ? {size: 7, bold: true, color: GOLD} : k === "name" ? {size: 10.5, bold: true} : k === "b" ? {size: 8.5, bold: true} : {size: 8.5, color: MUTED}); ly += lh; }
+  let my = y + 5; for (const [k, v] of m.meta) { R.text(k, cx + 3, my, {size: 8.5, color: MUTED}); R.text(String(v), RX - 3, my, {size: 8.5, bold: true, align: "right"}); my += lh; } y += bh + 6;
+  R.rect(L, y, RX - L, 17, {fill: LIGHT}); R.rect(L, y, 1.4, 17, {fill: NAVY}); R.text("AMOUNT RECEIVED", L + 6, y + 6, {size: 7, bold: true, color: GOLD}); R.text("Rs. " + amt(m.rd.total), L + 6, y + 13, {size: 15, bold: true, color: NAVY});
+  const wl = wrap(m.words, 100, 9); wl.forEach((ln, i) => R.text(ln, RX - 4, y + 7.5 + i * 4.3 - (wl.length - 1) * 2.1, {size: 9, align: "right", color: INK})); y += 23;
+  const row = (k, v, o = {}) => { if (o.fill) R.rect(L, y, RX - L, 7, {fill: o.fill}); R.text(k, L + 3, y + 4.8, {size: 9, bold: !!o.b, color: o.c || INK}); R.text(v, RX - 3, y + 4.8, {size: 9, bold: !!o.b, align: "right", color: o.c || INK}); y += 7; R.line(L, y, RX, y, {color: LINE, w: 0.2}); };
+  R.rect(L, y, RX - L, 7, {fill: NAVY}); R.text("Particulars", L + 3, y + 4.8, {size: 8.5, bold: true, color: "#FFFFFF"}); R.text("Amount (Rs.)", RX - 3, y + 4.8, {size: 8.5, bold: true, color: "#FFFFFF", align: "right"}); y += 7;
+  row("Amount received" + (m.rd.mode ? " by " + m.rd.mode : "") + (m.rd.ref ? " (ref. " + m.rd.ref + ")" : ""), amt(m.rd.amount));
+  if (m.rd.tds) row("TDS deducted by you (section 194J)", amt(m.rd.tds));
+  row("Total credited to your account", amt(m.rd.total), {b: 1, fill: LIGHT, c: NAVY}); y += 5;
+  if (m.rd.alloc.length || m.rd.advance > 0) { R.text("ADJUSTED AGAINST", L, y, {size: 7, bold: true, color: GOLD}); y += 2;
+    R.rect(L, y, RX - L, 6.5, {fill: NAVY}); const o = {size: 8.2, bold: true, color: "#FFFFFF"}; R.text("Bill", L + 3, y + 4.4, o); R.text("Dated", L + 112, y + 4.4, o); R.text("Amount adjusted (Rs.)", RX - 3, y + 4.4, {...o, align: "right"}); y += 6.5;
+    for (const a of m.rd.alloc) { if (y > 250) { R.newPage(); y = 20; } R.text(a.label, L + 3, y + 4.6, {size: 8.8}); R.text(dmy(a.date), L + 112, y + 4.6, {size: 8.8}); R.text(amt(a.amt), RX - 3, y + 4.6, {size: 8.8, align: "right"}); y += 6.6; R.line(L, y, RX, y, {color: LINE, w: 0.2}); }
+    if (m.rd.advance > 0) { R.text("Advance (to be adjusted against future invoices)", L + 3, y + 4.6, {size: 8.8}); R.text(amt(m.rd.advance), RX - 3, y + 4.6, {size: 8.8, align: "right"}); y += 6.6; R.line(L, y, RX, y, {color: LINE, w: 0.2}); } y += 5; }
+  const b = m.rd.balAfter; R.rect(L, y, RX - L, 8.5, {stroke: NAVY, w: 0.35}); R.text(b > 0 ? "Balance outstanding after this receipt" : b < 0 ? "Advance with us after this receipt" : "Balance after this receipt", L + 3, y + 5.6, {size: 9.5, bold: true, color: NAVY});
+  R.text(b === 0 ? "Nil – fully settled" : "Rs. " + amt(Math.abs(b)), RX - 3, y + 5.6, {size: 9.5, bold: true, color: NAVY, align: "right"}); y += 14;
+  if (y + 40 > 280) { R.newPage(); y = 20; } y = drawAuthSign(R, s, m.auth, y, RX, true, L) + 6;
+  if (y + m.notes.length * 8 > 283) { R.newPage(); y = 20; } R.text("NOTES", L, y, {size: 7, bold: true, color: GOLD}); y += 4.3;
+  m.notes.forEach((t, i) => { for (const [j, ln] of wrap(t, RX - L - 6, 8).entries()) { R.text((j ? "   " : (i + 1) + ". ") + ln, L, y, {size: 8, color: MUTED}); y += 3.8; } });
+  R.footer((i, n) => { R.line(L, 287, RX, 287, {color: LINE, w: 0.25}); R.text("Receipt " + (m.rd.rno || "") + " · Verification code " + m.auth.code + ((s.email || s.phone) ? "  ·  " + [s.email, s.phone].filter(Boolean).join("  ·  ") : "") + (n > 1 ? "  ·  Page " + i + " of " + n : ""), 105, 291, {size: 7, color: MUTED, align: "center"}); }); }
+async function receiptPDF(m) { await needLib("pdf"); const doc = new window.jspdf.jsPDF({unit: "mm", format: "a4"}); doc.setProperties({title: receiptBase(m), author: m.s.firm, creator: m.s.firm, subject: "Verification code " + m.auth.code}); drawReceipt(pdfR(doc), m); return doc.output("blob"); }
+async function receiptFile(v) { v = ensureRno(v); const m = receiptModel(receiptData(v)); return {name: receiptBase(m) + ".pdf", data: await receiptPDF(m)}; }
+const receiptPNG = m => canvasDoc(R => drawReceipt(R, m), [m.auth.qr, m.auth.seal, m.auth.sign]);
+
+// ----- share a file straight into WhatsApp / Mail / AirDrop (system share sheet) where the browser allows it
+const canShareFiles = () => { try { return !!(navigator.canShare && navigator.canShare({files: [new File(["x"], "x.pdf", {type: "application/pdf"})]})); } catch { return false; } };
+async function shareFile(fl, text) { const file = new File([fl.data], fl.name, {type: fl.data.type || "application/pdf"});
+  try { if (navigator.canShare && navigator.canShare({files: [file]})) { await navigator.share(text ? {files: [file], text} : {files: [file]}); return true; } } catch (e) { if (e && e.name === "AbortError") return true; console.warn(e); }
+  await saveFile(fl.name, fl.data); return false; }
+
+// ================= Productivity: recurring invoices, bulk reminders, receipt numbering =================
+const addMonths = (d, n) => { let y = +d.slice(0, 4), m = +d.slice(5, 7) + n, day = +d.slice(8, 10); while (m > 12) { m -= 12; y++; } while (m < 1) { m += 12; y--; } return y + "-" + pad(m) + "-" + pad(Math.min(day, new Date(y, m, 0).getDate())); };
+const MONF = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+// move month names in a description one month ahead: "GST returns – Oct 2026" → "… Nov 2026"
+function shiftMonthText(t) { return String(t || "").replace(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)(\.?)(\s*[-'’ ]\s*)(\d{4}|\d{2})\b/gi, (all, mon, dot, sep, yr) => {
+  const i = MON.findIndex(x => mon.slice(0, 3).toLowerCase() === x.toLowerCase()); if (i < 0) return all; let y = +yr, short = yr.length === 2; if (short) y += 2000; const ni = (i + 1) % 12; if (ni === 0) y++;
+  const name = mon.length > 4 ? MONF[ni] : MON[ni]; const cased = mon === mon.toUpperCase() ? name.toUpperCase() : name; return cased + dot + sep + (short ? String(y).slice(2) : y); }); }
+function recurDue() { const chains = new Map();
+  for (const v of vouchers()) if (v.type === "sales" && v.f.chain) { const k = v.f.chain; const cur = chains.get(k); if (!cur || v.date > cur.date || (v.date === cur.date && (v.createdAt || "") > (cur.createdAt || ""))) chains.set(k, v); }
+  const lim = addDays(todayStr(), 5); return [...chains.values()].filter(v => v.f.recur && led(v.f.party)).map(v => ({v, next: addMonths(v.date, 1)})).filter(x => x.next <= lim).sort((a, b) => a.next.localeCompare(b.next)); }
+function recurPanel() { const due = recurDue(); if (!due.length) return "";
+  return `<div class="panel"><div class="panel-head"><h2>Recurring invoices ready · ${due.length}</h2><div class="actions"><button class="btn sm primary" data-act="recurall">Create all ${due.length}</button></div></div>
+    <div class="tablewrap"><table><tbody>${due.map(x => { const iv = calcInvoice(x.v.f); return `<tr><td><b>${esc(lname(x.v.f.party))}</b><div class="meta">${esc((x.v.f.items || []).map(i => shiftMonthText(i.desc)).join(", "))}</div></td><td class="small num">Last ${esc(x.v.no)} · ${dmy(x.v.date)}<div class="meta">Next dated ${dmy(x.next)}</div></td><td class="r num">${money(iv.grand - iv.reimb)}</td>
+      <td class="r"><div class="actions" style="justify-content:flex-end"><button class="btn sm primary" data-recur="${x.v.id}">Create</button><button class="btn sm ghost" data-recurstop="${x.v.id}">Stop</button></div></td></tr>`; }).join("")}</tbody></table></div></div>`; }
+function recurCreate(v) { const date = addMonths(v.date, 1); const f = JSON.parse(JSON.stringify(v.f)); f.items = (f.items || []).map(x => ({...x, desc: shiftMonthText(x.desc)})); f.reimb = []; f.notes = shiftMonthText(f.notes);
+  f.dueDate = addDays(date, +ST().dueDays || 0); f.recur = true; const no = nextInvNo(date); const rec = {id: uid(), createdAt: nowIso(), type: "sales", date, no, f, narration: f.items.map(x => x.desc).join("; ")}; rec.lines = buildLines(rec); upsert("vouchers", rec); return rec; }
+function recurCreateAll(btn) { const due = recurDue(); const made = []; for (const x of due) made.push(recurCreate(x.v)); commit(); toast(made.length + " invoice" + (made.length === 1 ? "" : "s") + " created: " + made.map(r => r.no).join(", ")); }
+document.addEventListener("click", e => { if (S.portalMode || !S.data) return; const b = e.target.closest("[data-recur],[data-recurstop]"); if (!b || b.closest("#modal-root")) return;
+  if (b.dataset.recur) { const v = vById(b.dataset.recur); if (!v) return; const r = recurCreate(v); commit(); toast("Invoice " + r.no + " created for " + lname(r.f.party)); invoiceView(vById(r.id)); }
+  if (b.dataset.recurstop) { const v = vById(b.dataset.recurstop); if (!v) return; if (!b.dataset.c) { b.dataset.c = 1; b.textContent = "Confirm stop"; return; } const nv = {...v, f: {...v.f, recur: false}}; upsert("vouchers", nv); commit(); toast("Monthly repeat stopped for " + lname(v.f.party)); } });
+
+// receipt numbers for older client receipts (once, in date order)
+function assignRnos() { let n = 0; for (const v of vouchers()) if (isClientRcpt(v) && !v.f.rno) { const nv = {...v, f: {...v.f, rno: nextRcptNo(v.date)}}; const a = D().vouchers; const i = a.findIndex(x => x.id === v.id); nv.updatedAt = nowIso(); a[i] = nv; n++; } if (n) memo = {}; return n; }
+
+// email every client with dues: reminder + statement of account PDF, one by one from Gmail
+function bulkRemind() { const list = [...clientDues().values()].filter(s => s.bal > 0).sort((a, b) => b.bal - a.bal).map(s => ({s, c: led(s.id)}));
+  openModal(`<div class="modal-head"><div><div class="small muted">Payment reminders · Gmail</div><h2>Email all clients with dues</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+    <p class="small muted" style="margin-top:0">Each client gets your reminder template with their statement of account (PDF) attached, from your Gmail. Clients without an email address are skipped.</p>
+    <div class="tablewrap"><table><tbody>${list.map(({s, c}) => `<tr><td style="width:1%"><input type="checkbox" class="br-c" value="${c.id}" ${c.email ? "checked" : "disabled"} style="width:auto" aria-label="${esc(c.name)}"></td><td><b>${esc(c.name)}</b><div class="meta">${esc(c.email || "No email saved")}</div></td><td class="r num">${money(s.bal)}</td><td class="small" id="br-${c.id}"></td></tr>`).join("")}</tbody></table></div>
+    <div class="err" id="br-err"></div><div class="modal-foot"><span class="small muted" id="br-n"></span><div class="right"><button class="btn" data-close>Cancel</button><button class="btn primary" id="br-go">Send reminders</button></div></div>`, "wide");
+  const cnt = () => { $("#br-n").textContent = $$(".br-c:checked").length + " selected"; }; cnt(); $$(".br-c").forEach(x => x.addEventListener("change", cnt));
+  $("#br-go").addEventListener("click", async e => { const btn = e.currentTarget; const ids = $$(".br-c:checked").map(x => x.value); if (!ids.length) return; if (!S.online.mcp) { $("#br-err").textContent = "Gmail isn't available in this view."; return; }
+    btn.disabled = true; let ok = 0;
+    for (const id of ids) { const c = led(id); const cell = $("#br-" + id); cell.textContent = "Sending…";
+      try { const ctx = {client: id, kind: "reminder"}; const body = fillTpl(ST().tpl.reminder || DEFAULT_TPL.reminder, msgVars(ctx)); const pdf = await reportPDF(specLedger(id, fyOf(todayStr())));
+        await S.online.mcp.callTool("Gmail", "send_message", {to: [c.email], ...(ST().email ? {cc: [ST().email]} : {}), subject: "Payment reminder – " + ST().firm, body, attachments: [{content: b64(new Uint8Array(await pdf.arrayBuffer())), filename: ("Statement of Account " + c.name).replace(/[\\/:*?"<>|]+/g, "-") + ".pdf", mimeType: "application/pdf"}]});
+        logMsg(ctx, "Email", "Sent", "Payment reminder (bulk)"); cell.innerHTML = `<span class="pill in">Sent</span>`; ok++; }
+      catch (er) { console.warn(er); cell.innerHTML = `<span class="pill out">Not sent</span>`; if (er && ["needs_reauth", "server_not_connected", "not_in_manifest", "blocked_by_policy"].includes(er.code)) { $("#br-err").textContent = "Gmail isn't connected — reconnect it in claude.ai Settings → Connectors."; break; } } }
+    btn.textContent = "Done"; toast(ok + " reminder" + (ok === 1 ? "" : "s") + " sent"); }); }
+
 // ================= Google Drive: client folders, uploads, sharing (online ledger) =================
 const DRIVE = "Google Drive", FOLDER_MIME = "application/vnd.google-apps.folder";
 const SUBS_DEFAULT = ["01 KYC & Registration", "02 Engagement & Agreements", "03 Financial Statements & Audit", "04 Income Tax", "05 GST", "06 ROC – MCA", "07 Notices & Orders", "08 Invoices & Statements", "09 Working Papers", "10 Shared with Client"];
@@ -5100,7 +5211,7 @@ function buildPacket(c) {
   const invoices = vouchers().filter(v => v.type === "sales" && v.f.party === c.id).map(v => ({id: v.id, no: v.no, date: v.date, f: v.f, st: invStatus(v)}));
   const docs = docsOf(c.id).filter(d => d.shared).map(d => d.url ? {id: d.id, name: d.name, url: d.url, cat: d.cat, at: d.at} : {id: d.id, name: d.name, type: d.type, size: d.size, cat: d.cat, at: d.at, n: d.n, key: d.key});
   const client = {...c}; delete client.portal; delete client.notes; delete client.folder;
-  return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs, comp: typeof compPacket === "function" ? compPacket(c) : []};
+  return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs, comp: typeof compPacket === "function" ? compPacket(c) : [], receipts: vouchers().filter(v => isClientRcpt(v) && v.f.party === c.id).map(receiptData).reverse()};
 }
 const portalLink = c => (webOn() ? siteUrl() : VIEWER_URL) + "#c" + c.portal.token;
 function genPw() { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint8Array(12)); let s = ""; for (const x of r) s += A[x % A.length]; return s.slice(0, 4) + "-" + s.slice(4, 8) + "-" + s.slice(8); }
@@ -5185,7 +5296,7 @@ function portalLock() {
 }
 function portalShell() {
   const pk = S.pk, s = ST(), c = pk.client; const billed = r2(pk.invoices.reduce((a, i) => a + calcInvoice(i.f).grand, 0)); const paid = r2(pk.statement.reduce((a, x) => a + (x.cr || 0), 0));
-  const tabs = [["inv", "Invoices"], ["st", "Statement"], ...((pk.comp || []).length ? [["comp", "Compliance"]] : []), ["docs", "Documents"], ["pay", "Pay & contact"]];
+  const tabs = [["inv", "Invoices"], ["st", "Statement"], ...((pk.receipts || []).length ? [["rcpt", "Receipts"]] : []), ...((pk.comp || []).length ? [["comp", "Compliance"]] : []), ["docs", "Documents"], ["pay", "Pay & contact"]];
   let body = "";
   if (S.ptab === "inv") body = pk.invoices.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Invoice no.</th><th>Services</th><th class="r">Amount</th><th>Status</th><th></th></tr></thead><tbody>
     ${pk.invoices.slice().reverse().map(i => `<tr class="click" data-pinv="${i.id}"><td class="num">${dmy(i.date)}</td><td class="num"><b>${esc(i.no)}</b></td><td>${esc((i.f.items || []).map(x => x.desc).join(", "))}</td><td class="r num">${money(calcInvoice(i.f).grand)}</td>
@@ -5195,6 +5306,7 @@ function portalShell() {
     <div class="filters" style="justify-content:space-between;margin-top:10px"><span class="small muted">Dr balance = amount payable by you · Cr balance = advance with us.</span><button class="btn sm primary" data-act="pstmt">Download statement (PDF)</button></div>`;
   if (S.ptab === "docs") body = pk.docs.length ? `<div class="tablewrap"><table><tbody>${pk.docs.map(d => `<tr><td><b>${esc(d.name)}</b><div class="meta">${esc(d.cat)}${d.size ? " · " + fmtSize(d.size) : ""} · ${esc(dLong((d.at || "").slice(0, 10)))}</div></td><td class="r">${d.url ? `<a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Open ↗</a>` : (MODE !== "online" && !d.embedded) ? `<span class="small muted">Ask us for this document</span>` : `<button class="btn sm" data-pdoc="${d.id}">Download</button>`}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty"><strong>No documents shared yet</strong></div>`;
+  if (S.ptab === "rcpt") body = `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Receipt no.</th><th>Mode</th><th class="r">Amount</th><th>Adjusted against</th><th class="r"></th></tr></thead><tbody>${(pk.receipts || []).map(r => `<tr><td class="num">${dmy(r.date)}</td><td class="num"><b>${esc(r.rno || "—")}</b></td><td class="small">${esc(r.mode)}${r.ref ? `<div class="meta">${esc(r.ref)}</div>` : ""}</td><td class="r num">${money(r.total)}${r.tds ? `<div class="meta">incl. TDS ${money(r.tds)}</div>` : ""}</td><td class="small">${esc(r.alloc.map(a => a.label).join(", ") || (r.advance ? "Advance" : ""))}</td><td class="r"><button class="btn sm" data-prcpt="${esc(r.id)}">PDF</button></td></tr>`).join("")}</tbody></table></div>`;
   if (S.ptab === "comp") { const td = todayStr(); body = `<div class="tablewrap"><table class="wide"><thead><tr><th>Due date</th><th>Compliance</th><th>Period</th><th>Status</th><th>Filed on</th><th>Acknowledgement</th></tr></thead><tbody>${(pk.comp || []).map(t => { const open = t.st !== "filed" && t.st !== "na";
       return `<tr><td class="num">${dmy(t.due)}</td><td><b>${esc(t.n)}</b></td><td class="small">${esc(t.p)}</td><td>${t.st === "filed" ? `<span class="pill in">Filed</span>` : t.st === "na" ? `<span class="pill">Not applicable</span>` : t.st === "docs" ? `<span class="pill warn">Documents awaited from you</span>` : open && t.due < td ? `<span class="pill out">Pending</span>` : `<span class="pill">Upcoming</span>`}</td><td class="num">${t.on ? dmy(t.on) : ""}</td><td class="num small">${esc(t.ack)}</td></tr>`; }).join("")}</tbody></table></div>
     <p class="small muted" style="margin-top:10px">Items marked “Documents awaited from you” need your data or documents — please share them so we can file on time.</p>`; }
@@ -5221,8 +5333,8 @@ function portalInvoice(id) {
 }
 function bindPortal() {
   const app = $("#app"); const f = $("#punlock"); if (f) f.addEventListener("submit", onPortalUnlock);
-  app.onclick = e => { const b = e.target.closest("[data-ptab],[data-pinv],[data-pdoc],[data-act]"); if (!b) return; const d = b.dataset;
-    if (d.ptab) { S.ptab = d.ptab; render(); return; } if (d.pinv) return portalInvoice(d.pinv); if (d.pdoc) return downloadDoc(S.pk.docs.find(x => x.id === d.pdoc));
+  app.onclick = e => { const b = e.target.closest("[data-ptab],[data-pinv],[data-pdoc],[data-act],[data-prcpt]"); if (!b) return; const d = b.dataset;
+    if (d.ptab) { S.ptab = d.ptab; render(); return; } if (d.prcpt) { const r = S.pk.receipts.find(x => x.id === d.prcpt); if (r) { const m = receiptModel(r, S.pk.client); receiptPDF(m).then(b => saveFile(receiptBase(m) + ".pdf", b)).catch(() => toast("Couldn't create the PDF. Check your internet connection.")); } return; } if (d.pinv) return portalInvoice(d.pinv); if (d.pdoc) return downloadDoc(S.pk.docs.find(x => x.id === d.pdoc));
     if (d.act === "pstmt") { if (S.pk.stmtPdf) return saveFile("Statement of Account " + S.pk.client.name + ".pdf", new Blob([unb64(S.pk.stmtPdf)], {type: "application/pdf"})); return exportSpec(specPortalStatement(S.pk), "pdf"); }
     if (d.act === "plock") { S.locked = true; S.pk = null; S.data = null; closeModal(); render(); } if (d.act === "pcopy") copyText(d.v); };
 }
@@ -5407,7 +5519,7 @@ async function onUnlock(e) {
   try { let text; if (ONLINE) { const r = await fetchRemote(); if (!r) throw new Error("nodata"); text = r.text; S.online.baseVer = r.md.ver; } else text = await Store.get("vault");
     const o = await unseal(text, pw); Object.assign(S, {key: o.key, salt: o.salt, iter: o.iter, data: o.data, pw, locked: false, lastAct: Date.now(), lockMsg: ""});
     if (permP) await permP; S.saveState = ONLINE ? "Saved online" : "Saved on this Mac" + (ls.get("lastSave") ? " · " + fmtTime(ls.get("lastSave")) : "");
-    if (o.data._migrated) { delete o.data._migrated; persist(); } memo = {}; logEvent("Ledger opened"); dirty(); schedulePortals();
+    if (o.data._migrated) { delete o.data._migrated; persist(); } memo = {}; logEvent("Ledger opened"); if (assignRnos()) persist(); dirty(); schedulePortals();
     if (ONLINE) setTimeout(autoBackup, 9000);
     if (ONLINE && S.online.mcp && ST().driveAccount) setTimeout(async () => { try { const me = await driveWhoAmI(); if (me && me !== ST().driveAccount) { const r = await checkDrive(); driveChangedPrompt(r); } } catch {} }, 2500);
   } catch (err) { console.warn(err); const el = $("#pw-err"); if (el) el.textContent = err.message === "badpw" ? "That password doesn't match. Try again." : "Couldn't open the ledger data. Check your connection and try again."; if (btn) { btn.disabled = false; btn.textContent = "Unlock"; } }
