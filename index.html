@@ -185,6 +185,11 @@ ul.checks{margin:0;padding-left:20px;line-height:1.8}
 .searchbtn kbd{font-size:11px;margin-left:4px}
 table.bk input{padding:6px 8px;font-size:13px}table.bk tr.muted td{opacity:.6}
 @media (max-width:820px){.searchbtn{display:none}}
+.whofor{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface-2);border-left:3px solid var(--accent)}.whofor b{font-size:16px}
+.clientchip{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;padding:4px 10px;border-right:1px solid var(--line);margin-right:2px}.clientchip span{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.clientchip b{font-size:14px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:820px){.clientchip{align-items:flex-start;border-right:0}}
+.calcres tr.sub td{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+ul.calcnotes{margin:0;padding-left:18px}ul.calcnotes li{margin:2px 0}
 </style></head>
 <body><div class="wrap" id="app"></div><div id="modal-root"></div><script type="application/json" id="pna-site">{"firm":"Prarabdh Neema & Associates","tagline":"Chartered Accountants","phone":"+91-8889956002","email":"caprarabdhneema@outlook.com","website":""}</script><script>//---------------------------------------------------------------------
 //
@@ -4842,7 +4847,7 @@ function ltStart(k, client) { const def = ltDef(k); S.lt = {view: "new", tpl: k,
 function vLetters() { const L = S.lt;
   const seg = `<div class="seg">${[["new", "Write a letter"], ["reg", "Letters issued"]].map(([k, l]) => `<button data-lview="${k}" aria-pressed="${L.view === k}">${l}${k === "reg" && D().letters.length ? " · " + D().letters.length : ""}</button>`).join("")}</div>`;
   if (L.view === "reg") { const rows = D().letters.slice().sort((a, b) => (b.date + b.at).localeCompare(a.date + a.at));
-    return `<div class="panel"><div class="panel-head">${seg}<div class="actions"><span class="small muted">Every letter you download, email or save is kept here with its reference number.</span><button class="btn sm" data-tlv="udin" data-tab="tools">UDIN register →</button></div></div>
+    return `<div class="panel"><div class="panel-head">${seg}<div class="actions"><span class="small muted">Every letter you download, email or save is kept here with its reference number.</span></div></div>
       ${rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Ref</th><th>To</th><th>Letter</th><th class="r"></th></tr></thead><tbody>${rows.map(l => `<tr><td class="num">${dmy(l.date)}</td><td class="num small">${esc(l.ref || "—")}</td><td>${esc(lname(l.client) !== "—" ? lname(l.client) : (l.to || "").split("\n")[0])}</td><td><b>${esc((ltDef(l.tpl) || {n: "Letter"}).n)}</b>${l.sub ? `<div class="meta">${esc(l.sub)}</div>` : ""}</td>
         <td class="r"><div class="actions" style="justify-content:flex-end"><button class="btn sm" data-lopen="${l.id}">Open</button><button class="btn sm" data-lpdf="${l.id}">PDF</button><button class="btn sm ghost" data-ldel="${l.id}">Delete</button></div></td></tr>`).join("")}</tbody></table></div>`
         : `<div class="empty"><strong>No letters yet</strong>Choose a template under “Write a letter”.</div>`}</div>`; }
@@ -4885,7 +4890,7 @@ function bindLetters() { const L = S.lt; const sc = $("#lt-scale");
     prev(); })); }
 async function letterAction(a, btn) { const L = S.lt; const m = letterModel(L); const name = letterFileBase(m); const c = led(L.client);
   const save = () => { const rec = {id: L.id || "lt-" + uid(), tpl: L.tpl, client: L.client, date: m.date, ref: m.ref, sub: m.subject || m.title, to: m.to.join("\n"), body: m.body, f: L.f, at: nowIso(), subRaw: L.sub, bodyRaw: L.body, toRaw: L.to};
-    upsert("letters", rec); const dfx = ltDef(L.tpl); if (dfx && dfx.udin) udinFromLetter(rec, dfx); L.id = rec.id; L.ref = m.ref; commit(); return rec; };
+    upsert("letters", rec); L.id = rec.id; L.ref = m.ref; commit(); return rec; };
   const busy = (on) => { if (btn) { btn.disabled = on; } };
   try { busy(true);
     if (a === "save") { save(); toast("Saved in the letters register" + (m.ref ? " · " + m.ref : "")); }
@@ -4906,8 +4911,6 @@ const LOGGED = {
   ledgers: l => (isClient(l) ? "Client · " : "Account · ") + l.name,
   comp: t => compTitle(t) + " · " + lname(t.client) + " · " + stLabelC(t.status),
   letters: l => "Letter " + (l.ref || "") + " · " + (l.sub || (ltDef(l.tpl) || {}).n || ""),
-  udin: u => "UDIN " + u.udin + " · " + lname(u.client) + " · " + u.type,
-  time: t => "Time " + fmtMins(t.mins) + " · " + (t.staff || "") + " · " + (t.client === "firm" ? "Firm" : lname(t.client)),
 };
 function logAct(coll, rec, act) { const d = D(); if (!d || !d.log || !LOGGED[coll]) return; let what = ""; try { what = LOGGED[coll](rec); } catch { what = rec.name || rec.id; }
   const last = d.log[d.log.length - 1]; const t = nowIso();
@@ -5182,7 +5185,7 @@ function portalDeadlines(c) { const td = todayStr(), lim = addDays(td, 60);
   for (const k of keys) { const def = compDef(k); if (!def || def.cat === "Audit" || k === "agm") continue; for (const yy of [y, y + 1]) for (const p of compPeriods(def, yy)) { const due = compDue(def, p, c); if (due >= td && due <= lim) out.push({n: compName(k, p.fy), p: p.label, due, st: "pending"}); } }
   const seen = new Set(); return {generic: true, earlier: 0, list: out.sort((a, b) => a.due.localeCompare(b.due)).filter(x => { const k = x.n + x.p; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8)}; }
 function portalHero(pk) { const c = pk.client;
-  return `<div class="hero-strip"><div><div class="small muted">${esc(new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"}))}</div><h2>${greet()}${c.contact ? ", " + esc(c.contact) : ""}</h2><div class="small muted" style="margin-top:4px">Your account with ${esc(pk.firm.firm)} — invoices, payments, deadlines and updates in one place.</div></div>${quoteHTML(dayIndex() + qOff, "q-portal")}</div>`; }
+  return `<div class="hero-strip"><div><div class="small muted">${esc(new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"}))}</div><h2>${greet()}, ${esc(c.contact || c.name)}</h2><div class="small muted" style="margin-top:4px">${c.contact ? "<b>" + esc(c.name) + "</b> — your account" : "Your account"} with ${esc(pk.firm.firm)} — invoices, payments, deadlines and updates in one place.</div></div>${quoteHTML(dayIndex() + qOff, "q-portal")}</div>`; }
 function portalFeed(pk) { const c = pk.client, dl = pk.deadlines || {list: []}; const td = todayStr(); const notes = [...(pk.notes || []), ...feedItems(c.entity)].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date)); const shown = S.pAllNotes ? notes : notes.slice(0, 3);
   return `${dl.list.length || dl.earlier ? `<div class="panel"><div class="panel-head"><h2>${tr("Your upcoming deadlines")}</h2><span class="small muted">${dl.generic ? "Statutory calendar for " + esc(entityName(c.entity)) : "Next 60 days"}</span></div>
     ${dl.list.length ? `<div class="dlcards">${dl.list.map(t => { const n = daysBetween(td, t.due); return `<div class="dlcard ${n <= 7 ? "soon" : ""}"><div class="dln">${n === 0 ? "Today" : n + "<small>day" + (n === 1 ? "" : "s") + " left</small>"}</div><div><b>${esc(t.n)}</b><div class="meta">${esc(t.p)} · due ${esc(dLong(t.due))}</div>${t.st === "docs" ? `<span class="pill warn" style="margin-top:4px">Documents awaited from you</span>` : ""}</div></div>`; }).join("")}</div>` : `<p class="small muted" style="margin:0">Nothing falls due in the next 60 days.</p>`}
@@ -5347,7 +5350,7 @@ function clientDocs(id) {
 }
 
 // ----- portal: what a client sees
-const FIRM_KEYS = ["quotes", "feedHidden", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
+const FIRM_KEYS = ["incFees", "rateOv", "quotes", "feedHidden", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
 function stLabel(v, x) { const f = v.f || {};
   if (v.type === "sales") return "Invoice " + v.no; if (v.type === "receipt") return "Payment received" + (f.mode ? " · " + f.mode : "") + (+f.tds ? " (incl. TDS " + money(f.tds) + ")" : "");
   if (v.type === "payment") return x.dr ? "Paid on your behalf" + (v.narration ? " · " + v.narration : "") : "Refund paid";
@@ -5363,7 +5366,7 @@ function buildPacket(c) {
   return {kind: "portal", v: 1, firm, client, bal: cd.bal, age: cd.age, statement, invoices, docs, comp: typeof compPacket === "function" ? compPacket(c) : [], receipts: vouchers().filter(v => isClientRcpt(v) && v.f.party === c.id).map(receiptData).reverse(),
     notes: notesFor(c.entity).slice(0, 8).map(n => ({id: n.id, date: n.date, cat: n.cat, title: n.title, body: n.body, link: n.link || "", pin: !!n.pin})), deadlines: portalDeadlines(c), upload: c.upload || ""};
 }
-const portalLink = c => (webOn() ? siteUrl() : VIEWER_URL) + "#c" + c.portal.token;
+const portalLink = c => (webOn() ? siteUrl() : VIEWER_URL) + "#c" + c.portal.token + "/" + encodeURIComponent((c.name || "").trim().replace(/\s+/g, "-")).replace(/%2C/gi, ",");
 function genPw() { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint8Array(12)); let s = ""; for (const x of r) s += A[x % A.length]; return s.slice(0, 4) + "-" + s.slice(4, 8) + "-" + s.slice(8); }
 const portalCache = {};
 async function sha(s) { return b64(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s)))); }
@@ -5441,12 +5444,13 @@ function portalLock() {
     if (S.portalMeta === undefined) return `<div class="lock"><div class="lockcard">${top}<div class="muted">Loading…</div></div></div>`;
     if (!S.portalMeta) return `<div class="lock"><div class="lockcard">${top}<p class="muted">This portal link isn't active. Please contact ${esc(firm)} for a new link.</p></div></div>`; }
   const pm = S.portalMeta || {}; const help = MODE === "portalweb" && (pm.phone || pm.email) ? `<div class="small muted">${tr("Need help?")} ${[pm.phone, pm.email].filter(Boolean).map(esc).join(" · ")}</div>` : "";
-  return `<div class="lock"><div class="lockcard">${top}<form id="punlock">${MODE === "portalweb" && !S.portalToken ? `<label class="lbl" for="pcid">${tr("Client ID")}</label><input id="pcid" autocomplete="username" required placeholder="From the link the firm sent you" style="margin-bottom:12px">` : ""}<label class="lbl" for="ppw">${tr("Password")}</label><input id="ppw" type="password" autocomplete="current-password" required autofocus>
+  const who = S.portalName ? `<div class="whofor"><span class="small muted">${tr("Client portal of")}</span><b>${esc(S.portalName)}</b></div>` : "";
+  return `<div class="lock"><div class="lockcard">${top}${who}<form id="punlock">${MODE === "portalweb" && !S.portalToken ? `<label class="lbl" for="pcid">${tr("Client ID")}</label><input id="pcid" autocomplete="username" required placeholder="From the link the firm sent you" style="margin-bottom:12px">` : ""}<label class="lbl" for="ppw">${tr("Password")}</label><input id="ppw" type="password" autocomplete="current-password" required autofocus>
     <div class="err" id="pw-err"></div><button class="btn primary" type="submit">${tr("View my account")}</button></form><div class="small muted">${tr("Your information is encrypted and opens only with the password shared by the firm.")}</div>${help}<div style="align-self:center">${langToggle()}</div></div></div>`;
 }
 function portalShell() {
   const pk = S.pk, s = ST(), c = pk.client; const billed = r2(pk.invoices.reduce((a, i) => a + calcInvoice(i.f).grand, 0)); const paid = r2(pk.statement.reduce((a, x) => a + (x.cr || 0), 0));
-  const tabs = [["inv", "Invoices"], ["st", "Statement"], ...((pk.receipts || []).length ? [["rcpt", "Receipts"]] : []), ...((pk.comp || []).length ? [["comp", "Compliance"]] : []), ["docs", "Documents"], ["ask", "Ask us"], ["calc", "Tax tools"], ["pay", "Pay & contact"]];
+  const tabs = [["inv", "Invoices"], ["st", "Statement"], ...((pk.receipts || []).length ? [["rcpt", "Receipts"]] : []), ...((pk.comp || []).length ? [["comp", "Compliance"]] : []), ["docs", "Documents"], ["ask", "Ask us"], ["calc", "Calculators"], ["pay", "Pay & contact"]];
   let body = "";
   if (S.ptab === "inv") body = pk.invoices.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>${tr("Date")}</th><th>${tr("Invoice no.")}</th><th>${tr("Services")}</th><th class="r">${tr("Amount")}</th><th>${tr("Status")}</th><th></th></tr></thead><tbody>
     ${pk.invoices.slice().reverse().map(i => `<tr class="click" data-pinv="${i.id}"><td class="num">${dmy(i.date)}</td><td class="num"><b>${esc(i.no)}</b></td><td>${esc((i.f.items || []).map(x => x.desc).join(", "))}</td><td class="r num">${money(calcInvoice(i.f).grand)}</td>
@@ -5465,7 +5469,7 @@ function portalShell() {
     ${s.upi ? `<button class="btn sm" style="margin-top:10px" data-act="pcopy" data-v="${esc(s.upi)}">${tr("Copy UPI ID")}</button>` : ""}</div>
     <div><h3 style="margin-bottom:8px">${tr("Contact us")}</h3><dl class="kv">${[["Phone", s.phone], ["Email", s.email], ["Office", [s.addr1, s.addr2].filter(Boolean).join(" · ")], ["GSTIN", s.gstin]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl></div></div>`;
   return `<header class="brandbar"><div class="brand"><div class="mono">PNA</div><div style="min-width:0"><div class="firm">${esc(s.firm)}</div><div class="tag">${esc(s.tagline || "")} · Client portal</div></div></div>
-    <div class="actions">${langToggle()}<span class="small muted">${tr("Updated")} ${esc(fmtTime(pk.at))}</span><button class="btn" data-act="plock">${tr("Lock")}</button></div></header>
+    <div class="actions"><div class="clientchip"><span>${tr("Client")}</span><b>${esc(c.name)}</b></div>${langToggle()}<span class="small muted">${tr("Updated")} ${esc(fmtTime(pk.at))}</span><button class="btn" data-act="plock">${tr("Lock")}</button></div></header>
   <div class="stack" style="margin-top:18px">${portalHero(pk)}<div><div class="small muted">${tr("Account of")}</div><h1 style="font-size:22px">${esc(c.name)}</h1>${c.gstin ? `<div class="small muted">GSTIN ${esc(c.gstin)}</div>` : ""}</div>
   <div class="grid cols-4"><div class="panel stat hero"><div class="label">${tr(pk.bal < 0 ? "Advance with us" : "Amount payable")}</div><div class="value">${money(Math.abs(pk.bal))}</div><div class="foot">${pk.bal > 0 && pk.age[3] ? money(pk.age[3]) + " " + tr("older than 90 days") : tr("As per our books")}</div></div>
     <div class="panel stat"><div class="label">${tr("Invoices")}</div><div class="value">${pk.invoices.length}</div><div class="foot">${tr("Total billed")} ${money(billed)}</div></div>
@@ -5493,7 +5497,7 @@ async function onPortalUnlock(e) {
   e.preventDefault(); const pw = $("#ppw").value; const btn = e.submitter; if (btn) { btn.disabled = true; btn.textContent = "Opening…"; }
   try { let text, docs = {};
     if (MODE === "portalfile") { const p = JSON.parse($("#pna-packet").textContent); text = p.enc; docs = p.docs || {}; }
-    else if (MODE === "portalweb") { const tok = S.portalToken || ((($("#pcid") || {}).value || "").trim().toLowerCase().replace(/^.*#c?/, ""));
+    else if (MODE === "portalweb") { const tok = S.portalToken || ((($("#pcid") || {}).value || "").trim().toLowerCase().replace(/^.*#c?/, "").split("/")[0]);
       if (!/^[a-z0-9]{8,}$/.test(tok)) throw new Error("noid"); const r = await fetch("p/" + tok + ".json?t=" + Date.now(), {cache: "no-store"}).catch(() => { throw new Error("net"); });
       if (r.status === 404) throw new Error("gone"); if (!r.ok) throw new Error("net"); text = await r.text(); S.portalToken = tok; }
     else { const m = await S.online.db.doc("portal/" + S.portalToken).get(); if (!m.exists) throw new Error("gone"); S.portalMeta = m.data(); text = await readChunks("portalchunks/" + S.portalToken + "-" + m.data().ver, m.data().n); }
@@ -5613,7 +5617,7 @@ function webGuide() {
 // ================= Tax calculators (portal + firm) · Hindi/English for the client portal =================
 // ----- portal language
 S.lang = ls.get("plang", "en") === "hi" ? "hi" : "en";
-const HI = {"Invoices": "बिल", "Statement": "खाता विवरण", "Receipts": "रसीदें", "Compliance": "अनुपालन", "Documents": "दस्तावेज़", "Pay & contact": "भुगतान व संपर्क", "Tax tools": "टैक्स कैलकुलेटर", "Ask us": "सेवा / प्रश्न",
+const HI = {"Invoices": "बिल", "Statement": "खाता विवरण", "Receipts": "रसीदें", "Compliance": "अनुपालन", "Documents": "दस्तावेज़", "Pay & contact": "भुगतान व संपर्क", "Calculators": "कैलकुलेटर", "Ask us": "सेवा / प्रश्न",
   "Amount payable": "देय राशि", "Advance with us": "हमारे पास अग्रिम", "As per our books": "हमारे खातों के अनुसार", "older than 90 days": "90 दिन से पुराना", "Total billed": "कुल बिल राशि", "Payments & credits": "भुगतान व जमा",
   "Including TDS deducted": "काटे गए TDS सहित", "Shared with you": "आपके साथ साझा", "Account of": "खाताधारक", "Lock": "लॉक करें", "Updated": "अपडेट", "View my account": "मेरा खाता देखें", "Password": "पासवर्ड", "Client ID": "क्लाइंट आईडी",
   "Date": "दिनांक", "Invoice no.": "बिल सं.", "Services": "सेवाएँ", "Amount": "राशि", "Status": "स्थिति", "View / PDF": "देखें / PDF", "Particulars": "विवरण", "Debit": "नामे", "Credit": "जमा", "Balance": "शेष",
@@ -5626,7 +5630,7 @@ const HI = {"Invoices": "बिल", "Statement": "खाता विवरण"
   "Open upload folder ↗": "अपलोड फ़ोल्डर खोलें ↗", "Request a service or ask a question": "सेवा का अनुरोध करें या प्रश्न पूछें", "Service": "सेवा", "Your message": "आपका संदेश", "Send on WhatsApp": "WhatsApp पर भेजें", "Send by email": "ईमेल से भेजें",
   "We usually reply within one working day.": "हम सामान्यतः एक कार्य-दिवस में उत्तर देते हैं।", "Income tax": "आयकर", "Advance tax": "अग्रिम कर", "GST late fee & interest": "GST विलंब शुल्क व ब्याज",
   "Old vs new regime": "पुरानी बनाम नई व्यवस्था", "Your upcoming deadlines": "आपकी आगामी नियत तिथियाँ", "Need help?": "सहायता चाहिए?",
-  "Your information is encrypted and opens only with the password shared by the firm.": "आपकी जानकारी एन्क्रिप्टेड है और फ़र्म द्वारा दिए गए पासवर्ड से ही खुलती है।", "Estimates only — please confirm with us before filing or paying.": "केवल अनुमान — दाखिल या भुगतान से पहले हमसे पुष्टि करें।"};
+  "Your information is encrypted and opens only with the password shared by the firm.": "आपकी जानकारी एन्क्रिप्टेड है और फ़र्म द्वारा दिए गए पासवर्ड से ही खुलती है।", "Estimates only — please confirm with us before filing or paying.": "केवल अनुमान — दाखिल या भुगतान से पहले हमसे पुष्टि करें।", "Late fee & penalty": "विलंब शुल्क, ब्याज व पेनल्टी", "Incorporation cost": "कंपनी / LLP पंजीकरण लागत", "Client portal of": "क्लाइंट पोर्टल —", "Client": "क्लाइंट"};
 const tr = s => (S.lang === "hi" && HI[s]) || s;
 const langToggle = () => `<div class="seg langseg" role="group" aria-label="Language"><button data-lang="en" aria-pressed="${S.lang !== "hi"}">English</button><button data-lang="hi" aria-pressed="${S.lang === "hi"}">हिंदी</button></div>`;
 document.addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (!b) return; S.lang = b.dataset.lang; ls.set("plang", S.lang); document.documentElement.lang = S.lang; render(); });
@@ -5657,55 +5661,6 @@ function advTax(inp) { const fy = +inp.fy || fyOf(todayStr()); const net = Math.
     const charge = pct[i] && cum < net * safe[i] ? Math.floor(short / 100) * 100 * 0.01 * months[i] : 0; int += charge; return {d, pct: pct[i], req, cum, short, charge, inst: Math.max(0, req - (i ? net * pct[i - 1] : 0))}; });
   return {fy, net, need: net >= 10000, rows, int}; }
 
-// ----- GST late fee (GSTR-3B / GSTR-1) and interest
-function gstLate(inp) { const days = inp.due && inp.filed ? Math.max(0, daysBetween(inp.due, inp.filed)) : 0; const nil = !!inp.nil;
-  const per = nil ? 20 : 50, cap = nil ? 500 : ({s: 2000, m: 5000, l: 10000})[inp.to || "s"]; const fee = Math.min(days * per, cap);
-  const idays = inp.due && (inp.paid || inp.filed) ? Math.max(0, daysBetween(inp.due, inp.paid || inp.filed)) : 0; const rate = +inp.rate || 18; const interest = Math.round((+inp.tax || 0) * rate / 100 * idays / 365);
-  return {days, per, cap, fee, cgst: fee / 2, sgst: fee / 2, idays, rate, interest}; }
-
-// ----- UI (shared by the portal "Tax tools" tab and the firm's Tools tab)
-S.calc = Object.assign({k: "itx", itx: {age: "below", sal: "", oth: "", ex: "", c80: "", d80: "", hl: "", od: ""}, adv: {fy: fyOf(todayStr()), liab: "", tds: "", pres: false, p0: "", p1: "", p2: "", p3: ""},
-  gst: {ret: "3B", nil: false, to: "s", due: "", filed: todayStr(), tax: "", paid: "", rate: "18"}}, {});
-const cf_ = (id, label, v, o = {}) => `<div class="field${o.span ? " span2" : ""}"><label class="lbl" for="cx-${id}">${label}</label>${o.sel ? `<select id="cx-${id}" data-cx="${id}">${o.sel.map(([k, l]) => opt(k, l, String(v) === String(k))).join("")}</select>` : o.chk ? `<label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cx-${id}" data-cx="${id}" style="width:auto" ${v ? "checked" : ""}> ${o.chk}</label>` : `<input id="cx-${id}" data-cx="${id}" ${o.date ? `type="date"` : `type="number" inputmode="decimal" step="any" min="0"`} value="${esc(v)}" placeholder="${o.ph || "0"}">`}${o.hint ? `<span class="hint">${o.hint}</span>` : ""}</div>`;
-function calcPanel() { const k = S.calc.k, x = S.calc[k]; const seg = `<div class="seg">${[["itx", tr("Old vs new regime")], ["adv", tr("Advance tax")], ["gst", tr("GST late fee & interest")]].map(([a, l]) => `<button data-calc="${a}" aria-pressed="${k === a}">${l}</button>`).join("")}</div>`;
-  let form = "";
-  if (k === "itx") form = cf_("age", "Age", x.age, {sel: [["below", "Below 60 years"], ["60", "60 to 79 years"], ["80", "80 years or more"]]}) + cf_("sal", "Salary / pension (gross, ₹)", x.sal) + cf_("oth", "Other income – business, interest, rent etc. (₹)", x.oth, {hint: "After expenses. Capital gains taxed at special rates are not included."})
-    + `<div class="span2 small muted" style="margin-top:4px"><b>Old regime only</b> — deductions and exemptions</div>` + cf_("ex", "HRA / LTA / other exemptions (₹)", x.ex) + cf_("c80", "Section 80C – PF, PPF, LIC, ELSS etc. (max ₹1.5 lakh)", x.c80) + cf_("d80", "Section 80D – health insurance (₹)", x.d80) + cf_("hl", "Home-loan interest, self-occupied (max ₹2 lakh)", x.hl) + cf_("od", "Other deductions – 80CCD(1B), 80G, 80TTA etc. (₹)", x.od);
-  if (k === "adv") form = cf_("fy", "Financial year", x.fy, {sel: [fyOf(todayStr()), fyOf(todayStr()) + 1].map(y => [y, "FY " + fyLabel(y)])}) + cf_("liab", "Estimated tax for the year incl. cess (₹)", x.liab, {hint: `<button type="button" class="linkish" data-calcuse="1">Use the lower figure from the income-tax calculator</button>`}) + cf_("tds", "TDS / TCS expected (₹)", x.tds)
-    + cf_("pres", "", x.pres, {chk: "Presumptive income (section 44AD / 44ADA) — pay 100% by 15 March", span: 1}) + `<div class="span2 small muted"><b>Advance tax already paid</b> (by each due date)</div>` + ["15 Jun", "15 Sep", "15 Dec", "15 Mar"].map((d, i) => cf_("p" + i, "Paid by " + d + " (₹)", x["p" + i])).join("");
-  if (k === "gst") form = cf_("ret", "Return", x.ret, {sel: [["3B", "GSTR-3B"], ["1", "GSTR-1"]]}) + cf_("to", "Aggregate turnover in the preceding year", x.to, {sel: [["s", "Up to ₹1.5 crore"], ["m", "₹1.5 crore to ₹5 crore"], ["l", "Above ₹5 crore"]]}) + cf_("nil", "", x.nil, {chk: "Nil return (no outward supplies / no tax payable)", span: 1})
-    + cf_("due", "Due date", x.due, {date: 1}) + cf_("filed", "Filed on", x.filed, {date: 1}) + cf_("tax", "Tax paid late in cash (₹)", x.tax, {hint: "Interest applies on the net tax paid in cash."}) + cf_("paid", "Tax paid on", x.paid, {date: 1, hint: "Leave blank if paid on the filing date."}) + cf_("rate", "Interest rate", x.rate, {sel: [["18", "18% – late payment of tax"], ["24", "24% – excess ITC claimed / output tax reduced"]]});
-  return `<div class="panel calc" id="calc-root"><div class="panel-head">${seg}</div><div class="grid cols-2 calcgrid"><form class="formgrid" onsubmit="return false">${form}</form><div id="calc-out" aria-live="polite">${calcOut()}</div></div>
-    <p class="small muted" style="margin:12px 0 0">${tr("Estimates only — please confirm with us before filing or paying.")} Rates as verified on 27 Oct 2026 (Finance Act 2025; no slab change in Budget 2026). Sources: ${TAX_SRC.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join(" · ")}</p></div>`; }
-const r0 = n => "₹" + NF.format(Math.round(n || 0)).replace(/\.00$/, "");
-function calcOut() { const k = S.calc.k, x = S.calc[k];
-  if (k === "itx") { const r = incomeTax(x); if (!(+x.sal || +x.oth)) return `<div class="empty"><strong>Enter your income</strong>See tax under both regimes side by side.</div>`;
-    const row = (l, a, b, bold) => `<tr${bold ? ` class="tot"` : ""}><td>${l}</td><td class="r num">${a}</td><td class="r num">${b}</td></tr>`; const o = r.old, n = r.new;
-    return `<div class="calcres"><div class="calcwin ${r.better}">${r.better === "same" ? "Both regimes give the same tax." : `<b>${r.better === "new" ? "New" : "Old"} regime saves ${r0(r.saving)}</b>`}</div>
-      <div class="tablewrap"><table><thead><tr><th></th><th class="r">Old regime</th><th class="r">New regime</th></tr></thead><tbody>
-      ${row("Gross income", r0(o.gross), r0(n.gross))}${row("Standard deduction", "−" + r0(o.std), "−" + r0(n.std))}${row("Deductions & exemptions", o.ded ? "−" + r0(o.ded) : "—", "—")}${row("Taxable income", r0(o.ti), r0(n.ti), 1)}
-      ${row("Tax on slabs", r0(o.base), r0(n.base))}${row("Rebate (incl. marginal relief)", o.rebate ? "−" + r0(o.rebate) : "—", n.rebate ? "−" + r0(n.rebate) : "—")}${o.sc || n.sc ? row("Surcharge", r0(o.sc), r0(n.sc)) : ""}${row("Health & education cess 4%", r0(o.cess), r0(n.cess))}
-      ${row("Total tax payable", r0(o.pay), r0(n.pay), 1)}</tbody></table></div>
-      <p class="small muted">New regime: nil up to ₹4 lakh, then 5% to 30%; rebate makes tax nil up to ₹12 lakh taxable income (₹12.75 lakh for salaried). Old regime rebate up to ₹12,500 for income up to ₹5 lakh. Surcharge above ₹50 lakh with marginal relief (new regime capped at 25%).</p></div>`; }
-  if (k === "adv") { const r = advTax(x); if (!(+x.liab)) return `<div class="empty"><strong>Enter the estimated tax</strong>Get the instalments and interest for any shortfall.</div>`;
-    if (!r.need) return `<div class="calcres"><div class="calcwin same"><b>No advance tax needed</b> — tax after TDS (${r0(r.net)}) is below ₹10,000.</div></div>`;
-    return `<div class="calcres"><div class="calcwin new"><b>Tax after TDS: ${r0(r.net)}</b>${r.int ? ` · Interest u/s 234C about ${r0(r.int)}` : " · No 234C interest on these payments"}</div><div class="tablewrap"><table><thead><tr><th>Due date</th><th class="r">Cumulative</th><th class="r">Pay by then</th><th class="r">Paid</th><th class="r">Shortfall</th><th class="r">234C</th></tr></thead><tbody>
-      ${r.rows.map(w => `<tr><td class="num">${dmy(w.d)}${w.d < todayStr() ? "" : w.d.slice(0, 7) === todayStr().slice(0, 7) || daysBetween(todayStr(), w.d) <= 30 ? ` <span class="pill warn">Next</span>` : ""}</td><td class="r num">${Math.round(w.pct * 100)}%</td><td class="r num">${r0(w.req)}</td><td class="r num">${r0(w.cum)}</td><td class="r num ${w.short ? "amt-out" : ""}">${w.short ? r0(w.short) : "—"}</td><td class="r num">${w.charge ? r0(w.charge) : "—"}</td></tr>`).join("")}</tbody></table></div>
-      <p class="small muted">234C: 1% a month on the shortfall — 3 months each for June, September and December (no interest if 12% / 36% was paid by June / September), 1 month for March. If less than 90% is paid by 31 March, interest u/s 234B also applies. A resident senior citizen without business income need not pay advance tax.</p></div>`; }
-  const r = gstLate(x); if (!x.due) return `<div class="empty"><strong>Enter the due date</strong>And the date you filed, to see the late fee and interest.</div>`;
-  return `<div class="calcres"><div class="calcwin ${r.fee || r.interest ? "old" : "same"}"><b>${r.days ? r.days + " day" + (r.days === 1 ? "" : "s") + " late" : "Filed on time"}</b> · Late fee ${r0(r.fee)}${+x.tax ? " · Interest " + r0(r.interest) : ""}</div>
-    <div class="tablewrap"><table><tbody><tr><td>Late fee per day</td><td class="r num">₹${r.per} (₹${r.per / 2} CGST + ₹${r.per / 2} SGST)</td></tr><tr><td>Maximum late fee for this return</td><td class="r num">${r0(r.cap)}</td></tr>
-      <tr class="tot"><td>Late fee payable</td><td class="r num">${r0(r.fee)} <span class="meta">CGST ${r0(r.cgst)} + SGST ${r0(r.sgst)}</span></td></tr>${+x.tax ? `<tr><td>Interest ${r.rate}% for ${r.idays} days on ${r0(x.tax)}</td><td class="r num">${r0(r.interest)}</td></tr>` : ""}</tbody></table></div>
-    <p class="small muted">As per Notifications 19/2021 and 20/2021 – Central Tax: ₹50 a day (₹20 for nil returns), capped at ₹2,000 / ₹5,000 / ₹10,000 by turnover (₹500 for nil returns), for GSTR-3B and GSTR-1 alike. ${x.ret === "1" ? "GSTR-1 late fee is added to the next GSTR-3B. " : ""}Interest u/s 50 is from the day after the due date.</p></div>`; }
-function bindCalc(root) { if (!root || root.dataset.cb) return; root.dataset.cb = 1;
-  const upd = () => { const o = $("#calc-out"); if (o) o.innerHTML = calcOut(); };
-  root.addEventListener("input", e => { const id = e.target.dataset.cx; if (!id) return; const x = S.calc[S.calc.k]; x[id] = e.target.type === "checkbox" ? e.target.checked : e.target.value; upd(); });
-  root.addEventListener("change", e => { const id = e.target.dataset.cx; if (!id) return; const x = S.calc[S.calc.k]; x[id] = e.target.type === "checkbox" ? e.target.checked : e.target.value; upd(); });
-  root.addEventListener("click", e => { const b = e.target.closest("[data-calc],[data-calcuse]"); if (!b) return; e.preventDefault();
-    if (b.dataset.calcuse) { const r = incomeTax(S.calc.itx); if (!(+S.calc.itx.sal || +S.calc.itx.oth)) { toast("Fill the income-tax calculator first."); return; } S.calc.adv.liab = String(Math.min(r.old.pay, r.new.pay)); }
-    else S.calc.k = b.dataset.calc; const t = document.createElement("div"); t.innerHTML = calcPanel(); const nb = t.firstElementChild; root.replaceWith(nb); bindCalc(nb); });
-}
-
 // ----- portal: request a service / ask a question, document upload
 const SERVICES = ["Income-tax return", "GST return / registration", "TDS return", "Audit (statutory / tax / GST)", "ROC – MCA filing", "Company / LLP / firm registration", "Certificate (net worth / turnover)", "Reply to a notice", "Accounting & bookkeeping", "Tax planning / advice", "Other"];
 function portalAsk(pk) { const s = pk.firm; const can = (s.phone || s.email);
@@ -5735,108 +5690,266 @@ async function uploadLinkFlow(id) { const c = led(id);
     sh.disabled = true; sh.textContent = "Working…"; try { const fid = await ensureSub(led(id), "10 Shared with Client"); await dcall("share_file", {fileId: fid, emailAddress: em, role: "writer"}); fin(subUrl(fid)); }
     catch (x) { console.warn(x); $("#up-err").textContent = driveErr(x); sh.disabled = false; sh.textContent = "Create & share folder"; } }); }
 
+// ================= Verified statutory rates · late fee / interest / penalty calculator · incorporation cost calculator =================
+// Built-in rates (verified 27 Oct 2026). A newer copy is published as rates.json on the portal website by the daily verified-updates task;
+// the app uses it only when its version is newer and its shape matches (schema 1).
+const RATES0 = {schema: 1, v: "2026-10-27", verified: "27 Oct 2026",
+  it: {fy: "2025-26", fee: 5000, feeLow: 1000, lowLimit: 500000, int: 1, aud271B: {pct: 0.5, max: 150000}, p270A: {under: 50, mis: 200},
+    due: [["itr12", "ITR-1 / ITR-2 (no business income)", "2026-07-31", ""], ["itr34", "ITR-3 / ITR-4 – business, no audit", "2026-08-31", "Finance Act 2026"], ["audit", "Audit case (tax audit u/s 44AB)", "2026-11-21", "extended by CBDT from 31 Oct 2026"], ["tp", "Transfer pricing (Form 3CEB)", "2026-11-30", ""]]},
+  tds: {intLate: 1, intDep: 1.5, fee: 200, pen: [10000, 100000], reliefMonths: 1},
+  gst: {r31: {per: 50, nil: 20, caps: {s: 2000, m: 5000, l: 10000}, nilcap: 500}, r9: [[50000000, 50, 0.04], [200000000, 100, 0.04], [null, 200, 0.5]], r4: {per: 50, cap: 2000, nil: 20, nilcap: 500}, int: 18},
+  roc: {fee: [[100000, 200], [500000, 300], [2500000, 400], [10000000, 500], [null, 600]], feeNoShare: 200, perDay: 100, mult: [[30, 2], [60, 4], [90, 6], [180, 10], [null, 12]], mult15: [[15, 1], [30, 2], [60, 4], [90, 6], [180, 10], [null, 12]],
+    relax: {fy: "2025-26", aoc4: "2026-12-31", mgt7: "2027-01-31", ref: "MCA General Circular 05/2026"}, pen: {base: 10000, day: 100, co: 200000, off: 50000}, dirKyc: 5000,
+    llpFee: [[100000, 50], [500000, 100], [1000000, 150], [2500000, 200], [10000000, 400], [null, 600]],
+    llpMult: {small: [[15, 1], [30, 2], [60, 4], [90, 6], [180, 10], [360, 15]], other: [[15, 1], [30, 4], [60, 8], [90, 12], [180, 20], [360, 30]]}, f8beyond: {small: [15, 10], other: [30, 20]}, f11beyond: {small: 25, other: 50}},
+  inc: {name: 1000, nilCap: 1500000, filing: 500, small: {base: 2000, upto: 5000000, per: 200}, other: {base: 36000, s: [[5000000, 300], [10000000, 100], [null, 75]], cap: 25000000}, noShare: {free: 20, fee: 5000, per: 10},
+    pan: 66, tan: 65, runllp: 200, fillip: [[100000, 500], [500000, 2000], [1000000, 4000], [2500000, 5000], [10000000, 10000], [null, 25000]],
+    mcaSched: "MCA ‘Stamp duty rates_SPICeB’, 25 Nov 2024"},
+  // stamp duty on SPICe+ form, e-MoA and e-AoA (companies) — MCA schedule; f = SPICe+ Part B, moa, aoa (number or rule), ns = [MoA, AoA] for companies without share capital, s8 = "nil" | "same" | "shareonly"
+  stamp: {
+    "07": {f: 10, moa: 200, aoa: {t: "pct", p: 0.15, max: 2500000}, ns: [200, 200], s8: "nil"},
+    "06": {f: 15, moa: 60, aoa: {t: "slab", s: [[100000, 60]], e: 120}, ns: [60, 60], s8: "nil"},
+    "27": {f: 100, moa: 200, aoa: {t: "per", a: 1000, u: 500000, max: 5000000}, ns: [0, 0], s8: "nil"},
+    "21": {f: 10, moa: 300, aoa: 300, ns: [300, 300], s8: "same"},
+    "37": {f: 20, moa: 500, aoa: {t: "pct", p: 0.15, min: 1000, max: 500000}, ns: [500, 1000], s8: "same"},
+    "36": {f: 20, moa: 500, aoa: {t: "pct", p: 0.15, min: 1000, max: 500000}, ns: [500, 1000], s8: "same"},
+    "10": {f: 20, moa: 500, aoa: {t: "pct", p: 0.15, min: 1000, max: 500000}, ns: [500, 1000], s8: "nil"},
+    "20": {f: 5, moa: 63, aoa: 105, ns: [63, 105], s8: "nil"},
+    "01": {f: 10, moa: 150, aoa: {t: "slab", s: [[100000, 150]], e: 300}, ns: [150, 150], s8: "nil"},
+    "38": {f: 10, moa: 150, aoa: {t: "slab", s: [[100000, 150]], e: 300}, ns: [150, 150], s8: "nil", flag: "Ladakh is not listed separately in MCA's schedule — Jammu & Kashmir rates shown."},
+    "33": {f: 20, moa: 200, aoa: {t: "per", a: 500, u: 1000000, max: 500000}, ns: [200, 500], s8: "nil"},
+    "34": {f: 10, moa: 200, aoa: 300, ns: [200, 300], s8: "nil"},
+    "18": {f: 15, moa: 200, aoa: 310, ns: [200, 310], s8: "same"},
+    "17": {f: 10, moa: 100, aoa: 300, ns: [100, 300], s8: "same"},
+    "14": {f: 10, moa: 100, aoa: 150, ns: [100, 150], s8: "same"}, "13": {f: 10, moa: 100, aoa: 150, ns: [100, 150], s8: "same"},
+    "16": {f: 10, moa: 100, aoa: 150, ns: [100, 150], s8: "same"}, "15": {f: 10, moa: 100, aoa: 150, ns: [100, 150], s8: "same"},
+    "12": {f: 10, moa: 200, aoa: 500, ns: [200, 500], s8: "same"},
+    "32": {f: 25, moa: 1000, aoa: {t: "slab", s: [[1000000, 2000], [2500000, 5000]], e: {t: "pct", p: 0.5}}, ns: [1000, 2000], s8: "same", flag: "MCA's schedule notes a pending change for Kerala's MoA duty — confirm."},
+    "31": {f: 25, moa: 500, aoa: 1000, ns: [500, 1000], s8: "same"},
+    "23": {f: 50, moa: 2500, aoa: {t: "pct", p: 0.15, min: 5000, max: 2500000}, ns: [2500, 5000], s8: "same"},
+    "22": {f: 10, moa: 500, aoa: {t: "pct", p: 0.15, min: 1000, max: 500000}, ns: [500, 1000], s8: "nil"},
+    "08": {f: 10, moa: 500, aoa: {t: "pct", p: 0.15, min: 5000, max: 2500000}, ns: [500, 500], s8: "same", flag: "MCA's schedule shows both 0.5% and ‘0.15% or ₹5,000, max ₹25 lakh’ for Rajasthan's AoA — the latter is used; confirm."},
+    "03": {f: 25, moa: 5000, aoa: {t: "slab", s: [[100000, 5000]], e: 10000}, ns: [5000, 5000], s8: "nil"},
+    "02": {f: 3, moa: 60, aoa: {t: "slab", s: [[100000, 60]], e: 120}, ns: [60, 60], s8: "nil"},
+    "04": {f: 3, moa: 500, aoa: 1000, ns: [500, 1000], s8: "nil"},
+    "09": {f: 10, moa: 500, aoa: 500, ns: [500, 500], s8: "shareonly"}, "05": {f: 10, moa: 500, aoa: 500, ns: [500, 500], s8: "shareonly"},
+    "19": {f: 10, moa: 60, aoa: 300, ns: [60, 300], s8: "nil"},
+    "29": {f: 20, moa: 5000, aoa: {t: "per", a: 5000, u: 1000000, max: 10000000}, ns: [5000, 5000], s8: "nil", flag: "Karnataka raised duty under the Karnataka Stamp (Amendment) Act, 2023; MCA's schedule shows old and new MoA amounts — confirm."},
+    "24": {f: 20, moa: 300, aoa: {t: "pct", p: 0.5, max: 1500000}, ns: [300, 1000], s8: "nil", flag: "AoA cap shown as ₹15 lakh (Gujarat Stamp (Amendment) Act, 2025; MCA's 2024 schedule shows ₹5 lakh) — confirm for large capital."},
+    "26": {f: 1, moa: 15, aoa: 25, ns: [15, 25], s8: "nil", flag: "MCA lists Dadra & Nagar Haveli (shown) and Daman & Diu (₹150 + ₹1,000 per ₹5 lakh) separately — confirm."},
+    "30": {f: 50, moa: 150, aoa: {t: "per", a: 1000, u: 500000}, ns: [150, 1000], s8: "nil"},
+    "35": {f: 20, moa: 200, aoa: 300, ns: [200, 300], s8: "nil"}},
+  // stamp duty on LLP agreement — indicative only (state stamp acts; no MCA schedule)
+  llpStamp: {"23": {t: "pct", p: 2, min: 2000, max: 10000}, "08": {t: "per", a: 2000, u: 50000, max: 10000}, "22": {t: "slab", s: [[50000, 1000]], e: {t: "pct", p: 2, max: 5000}}, "10": {t: "pct", p: 2.5, max: 10000},
+    "24": {t: "pct", p: 1, max: 10000}, "27": {t: "slab", s: [[50000, 500]], e: {t: "pct", p: 1, max: 50000}}, "33": 1000, "07": {t: "pct", p: 1, min: 200, max: 5000}, "37": 500, "36": 500, "06": 1000, "03": 1000,
+    "02": 100, "12": 100, "18": 100, "14": 100, "17": 100, "15": 100, "13": 100, "11": 100, "16": 100, "09": 750, "05": 750, "19": 150, "32": 5000, "21": 200, "30": 150}};
+let RATES = RATES0;
+const ratesUrl = () => (MODE === "portalweb" ? "" : (typeof siteUrl === "function" ? siteUrl() : "")) + "rates.json";
+async function loadRates() { if (S.ratesTried) return; S.ratesTried = true; if (MODE !== "portalweb" && !(typeof webOn === "function" && webOn())) return;
+  try { const r = await fetch(ratesUrl() + "?t=" + Date.now(), {cache: "no-store"}); if (!r.ok) return; const j = await r.json();
+    if (j && j.schema === 1 && j.v > RATES0.v && j.it && j.tds && j.gst && j.roc && j.inc && j.stamp) { RATES = j; const el = $("#calc-root"); if (el) { const t = document.createElement("div"); t.innerHTML = calcPanel(el.dataset.mode); const nb = t.firstElementChild; el.replaceWith(nb); bindCalc(nb); } } } catch {} }
+const rule = (r, c) => { if (r == null) return null; if (typeof r === "number") return r; c = +c || 0;
+  if (r.t === "pct") { let v = c * r.p / 100; if (r.min) v = Math.max(v, r.min); if (r.max) v = Math.min(v, r.max); return Math.round(v); }
+  if (r.t === "per") { let v = Math.ceil(Math.max(c, 1) / r.u) * r.a; if (r.min) v = Math.max(v, r.min); if (r.max) v = Math.min(v, r.max); return v; }
+  if (r.t === "slab") { for (const [lim, a] of r.s) if (c <= lim) return rule(a, c); return rule(r.e, c); } return null; };
+const band = (tbl, x, strict) => { for (const row of tbl) if (row[0] == null || (strict ? x < row[0] : x <= row[0])) return row; return tbl[tbl.length - 1]; };
+const ovStamp = (st, k) => { const o = (S.pk ? S.pk.firm : (S.data ? ST() : {})).rateOv || {}; const v = o[k + ":" + st]; return v === "" || v == null ? null : +v; };
+
+// months counted as "month or part of a month"
+const monthsPart = (from, to) => { if (!from || !to || to <= from) return 0; const [y1, m1, d1] = from.split("-").map(Number), [y2, m2, d2] = to.split("-").map(Number); const end1 = d1 === lastDay(y1, m1), end2 = d2 === lastDay(y2, m2);
+  let m = (y2 - y1) * 12 + (m2 - m1); if (d2 > d1 && !(end1 && end2)) m++; return Math.max(1, m); };
+const calMonths = (from, to) => { if (!from || !to || to < from) return 0; return (+to.slice(0, 4) - +from.slice(0, 4)) * 12 + (+to.slice(5, 7) - +from.slice(5, 7)) + 1; };
+const fl100 = x => Math.floor(Math.max(0, x) / 100) * 100;
+
+// ----- Income tax: 234F fee, 234A / 234B interest, 271B, 270A
+function penIT(x) { const R = RATES.it; const due = x.due || (R.due.find(d => d[0] === x.cat) || R.due[0])[2]; const filed = x.filed || todayStr(); const late = filed > due;
+  const ti = +x.ti || 0, tax = Math.max(0, +x.tax || 0), adv = Math.max(0, +x.adv || 0), tds = Math.max(0, +x.tds || 0); const assessed = Math.max(0, tax - tds);
+  const fee = late && ti > 0 ? (ti <= R.lowLimit ? R.feeLow : R.fee) : 0; const unpaid = Math.max(0, assessed - adv);
+  const mA = late ? monthsPart(due, filed) : 0; const iA = fl100(unpaid) * R.int / 100 * mA;
+  const ay = +R.fy.slice(0, 4) + 1; const short = assessed >= 10000 && adv < 0.9 * assessed; const mB = short ? calMonths(ay + "-04-01", filed) : 0; const iB = short ? fl100(unpaid) * R.int / 100 * mB : 0;
+  const p271B = +x.turn ? Math.min(R.aud271B.max, +x.turn * R.aud271B.pct / 100) : 0; const pUnder = (+x.under || 0) * R.p270A.under / 100, pMis = (+x.under || 0) * R.p270A.mis / 100;
+  return {due, filed, late, fee, unpaid, mA, iA, short, mB, iB, assessed, p271B, pUnder, pMis}; }
+// ----- TDS: 201(1A) interest, 234E fee, 271H
+const tdsDepositDue = d => { if (!d) return ""; const y = +d.slice(0, 4), m = +d.slice(5, 7); return m === 3 ? y + "-04-30" : ymd(y, m + 1, 7); };
+const TDS_RET = [["1", "Q1 (Apr–Jun)", (fy) => fy + "-07-31"], ["2", "Q2 (Jul–Sep)", (fy) => fy + "-10-31"], ["3", "Q3 (Oct–Dec)", (fy) => (fy + 1) + "-01-31"], ["4", "Q4 (Jan–Mar)", (fy) => (fy + 1) + "-05-31"]];
+function penTDS(x) { const R = RATES.tds; const amt = Math.max(0, +x.amt || 0); const dd = x.dDue, dDed = x.dDed || dd, dPaid = x.dPaid;
+  const m1 = dd && dDed > dd ? calMonths(dd, dDed) : 0; const i1 = Math.round(amt * R.intLate / 100 * m1);
+  const depDue = tdsDepositDue(dDed); const m2 = dPaid && depDue && dPaid > depDue ? calMonths(dDed, dPaid) : 0; const i2 = Math.round(amt * R.intDep / 100 * m2);
+  const fy = +x.fy || fyOf(todayStr()); const rd = (TDS_RET.find(q => q[0] === x.q) || TDS_RET[0])[2](fy); const rf = x.rFiled || todayStr(); const days = rf > rd ? daysBetween(rd, rf) : 0;
+  const tdsQ = +x.tdsQ || amt; const fee = Math.min(days * R.fee, tdsQ); const penRisk = rf > addMonths(rd, R.reliefMonths);
+  return {m1, i1, depDue, m2, i2, rd, rf, days, fee, tdsQ, penRisk}; }
+// ----- GST: late fee (3B / 1 / 9 / 4), interest, demand penalty (73 / 74 / 74A)
+function penGST(x) { const R = RATES.gst; const ret = x.ret || "3B"; const days = x.due && x.filed && x.filed > x.due ? daysBetween(x.due, x.filed) : 0; let per = 0, cap = 0, capNote = "";
+  if (ret === "3B" || ret === "1") { per = x.nil ? R.r31.nil : R.r31.per; cap = x.nil ? R.r31.nilcap : R.r31.caps[x.to || "s"]; }
+  if (ret === "4") { per = x.nil ? R.r4.nil : R.r4.per; cap = x.nil ? R.r4.nilcap : R.r4.cap; }
+  if (ret === "9") { const b = band(R.r9, +x.aato || 0); per = b[1]; cap = Math.round((+x.st || +x.aato || 0) * b[2] / 100); capNote = b[2] + "% of turnover in the State"; }
+  const fee = Math.min(days * per, cap || Infinity);
+  const idays = x.due && (x.paid || x.filed) && (x.paid || x.filed) > x.due ? daysBetween(x.due, x.paid || x.filed) : 0; const interest = Math.round((+x.tax || 0) * R.int / 100 * idays / 365);
+  return {ret, days, per, cap, capNote, fee, cgst: fee / 2, sgst: fee / 2, idays, interest}; }
+const DEM_STAGES = {old: {nf: [["pre", "Paid before show-cause notice", 0], ["scn", "Paid within 30 days of the notice", 0], ["late", "Later / after the order", "10%"]], f: [["pre", "Paid before show-cause notice", 15], ["scn", "Paid within 30 days of the notice", 25], ["ord", "Paid within 30 days of the order", 50], ["late", "Later", 100]]},
+  new: {nf: [["pre", "Paid before show-cause notice", 0], ["scn", "Paid within 60 days of the notice", 0], ["late", "Later / after the order", "10%"]], f: [["pre", "Paid before show-cause notice", 15], ["scn", "Paid within 60 days of the notice", 25], ["ord", "Paid within 60 days of the order", 50], ["late", "Later", 100]]}};
+function penDemand(x) { const tax = Math.max(0, +x.dtax || 0); const era = x.dfy === "old" ? "old" : "new"; const kind = x.fraud ? "f" : "nf"; const st = DEM_STAGES[era][kind].find(s => s[0] === x.stage) || DEM_STAGES[era][kind][0];
+  const pen = st[2] === "10%" ? Math.max(tax * 0.1, 10000) : tax * st[2] / 100; return {era, kind, st, pen: Math.round(pen), sec: era === "old" ? (kind === "f" ? "74" : "73") : "74A"}; }
+// ----- ROC / LLP: normal fee, additional fee, penalties
+const ROC_FORMS = [["aoc4", "AOC-4 (financial statements)", "day"], ["mgt7", "MGT-7 / MGT-7A (annual return)", "day"], ["adt1", "ADT-1 (auditor appointment)", "m15"], ["dir12", "DIR-12 (director / KMP change)", "m"], ["mgt14", "MGT-14 (resolutions)", "m"], ["dpt3", "DPT-3 (return of deposits)", "m"], ["inc20a", "INC-20A (commencement of business)", "m"], ["pas3", "PAS-3 (allotment)", "m"], ["other", "Other company form", "m"], ["llp11", "LLP Form 11 (annual return)", "llp11"], ["llp8", "LLP Form 8 (account & solvency)", "llp8"], ["kyc", "DIR-3 KYC", "kyc"]];
+function penROC(x) { const R = RATES.roc; const f = ROC_FORMS.find(r => r[0] === x.form) || ROC_FORMS[0]; const days = x.due && x.filed && x.filed > x.due ? daysBetween(x.due, x.filed) : 0; const out = {f, days, normal: 0, add: 0, note: "", pen: null};
+  if (f[2] === "kyc") { out.add = days ? R.dirKyc : 0; out.note = "Flat fee once the due date has passed."; return out; }
+  if (f[2] === "llp11" || f[2] === "llp8") { const c = +x.contrib || 0; out.normal = band(R.llpFee, c)[1]; const kind = x.small ? "small" : "other";
+    if (days > 360) { if (f[2] === "llp8") { const [m, pd] = R.f8beyond[kind]; out.add = out.normal * m + pd * (days - 360); out.note = m + " times the normal fee + ₹" + pd + " a day beyond 360 days"; } else { const m = R.f11beyond[kind]; out.add = out.normal * m; out.note = m + " times the normal fee (beyond 360 days)"; } }
+    else if (days) { const m = band(R.llpMult[kind], days)[1]; out.add = out.normal * m; out.note = m + " times the normal fee (" + (x.small ? "small LLP" : "other LLP") + ")"; } return out; }
+  out.normal = x.noshare ? R.feeNoShare : band(R.fee, +x.cap || 0, true)[1];
+  if (f[2] === "day") { let start = x.due; const rel = x.relax && (f[0] === "aoc4" ? R.relax.aoc4 : R.relax.mgt7); if (rel && x.filed <= rel) { out.add = 0; out.note = "No additional fee — filed by " + dLong(rel) + " (" + R.relax.ref + ", FY " + R.relax.fy + ")."; }
+    else { out.add = days * R.perDay; out.note = "₹" + R.perDay + " for each day of delay, no upper limit" + (rel ? " (relaxation till " + dLong(rel) + " missed — counted from the original due date)" : "") + "."; }
+    const p = R.pen; out.pen = {sec: f[0] === "aoc4" ? "137(3)" : "92(5)", co: days ? Math.min(p.co, p.base + p.day * days) : 0, off: days ? Math.min(p.off, p.base + p.day * days) : 0}; return out; }
+  if (days) { const m = band(f[2] === "m15" ? R.mult15 : R.mult, days)[1]; out.add = out.normal * m; out.note = m + " times the normal fee for " + days + " days' delay."; } return out; }
+// ----- incorporation cost
+const INC_TYPES = [["pvt", "Private limited company"], ["opc", "One Person Company (OPC)"], ["pub", "Public limited company"], ["s8", "Section 8 company (non-profit)"], ["llp", "Limited Liability Partnership (LLP)"]];
+function regFee(type, cap, share, members) { const R = RATES.inc;
+  if (!share) { const m = +members || 0; if (m <= R.noShare.free) return {reg: 0, filing: 0}; return {reg: R.noShare.fee + Math.max(0, m - 200) * R.noShare.per, filing: R.filing}; }
+  if (cap <= R.nilCap) return {reg: 0, filing: 0};
+  if ((type === "pvt" || type === "opc") && cap <= R.small.upto) return {reg: R.small.base + Math.ceil((cap - 1000000) / 10000) * R.small.per, filing: R.filing};
+  let add = 0, prev = 1000000; for (const [lim, per] of R.other.s) { const hi = lim == null ? cap : Math.min(cap, lim); if (hi > prev) add += Math.ceil((hi - prev) / 10000) * per; prev = lim == null ? cap : lim; if (cap <= prev) break; }
+  return {reg: R.other.base + Math.min(add, R.other.cap), filing: R.filing}; }
+function incCost(x) { const R = RATES.inc; const type = x.type || "pvt", st = x.state || "23"; const lines = [], notes = []; const share = type === "s8" ? !x.noshare : true; const cap = +x.cap || 0;
+  const firm = S.pk ? S.pk.firm : (S.data ? ST() : {}); const fees = firm.incFees || {}; const people = Math.max(type === "opc" ? 1 : type === "pub" ? 3 : 2, +x.people || 0);
+  if (type === "llp") { const c = +x.cap || 0; if (x.name) lines.push(["g", "Name reservation (RUN-LLP)", R.runllp]); lines.push(["g", "FiLLiP incorporation fee (contribution " + money(c).replace(/\.00$/, "") + ")", band(R.fillip, c)[1]]);
+    lines.push(["g", "Form 3 – LLP agreement filing fee", band(RATES.roc.llpFee, c)[1]]); const o = ovStamp(st, "llp"); const ls = o != null ? o : rule(RATES.llpStamp[st], c);
+    if (ls != null) { lines.push(["s", "Stamp duty on LLP agreement" + (o != null ? "" : " (indicative)"), ls]); if (o == null) notes.push("LLP agreement stamp duty follows the State's Stamp Act and is shown as indicative — we confirm it before filing."); }
+    else notes.push("Stamp duty on the LLP agreement for " + stateName(st) + " — we will confirm the exact amount."); }
+  else { lines.push(["g", "Name reservation (SPICe+ Part A)", R.name]); const rf = regFee(type, cap, share, x.members); if (rf.filing) lines.push(["g", "SPICe+ filing fee", rf.filing]); lines.push(["g", share ? "Registration fee on authorised capital " + money(cap).replace(/\.00$/, "") : "Registration fee (" + (+x.members || 0) + " members)", rf.reg]);
+    if (share && cap <= R.nilCap) notes.push("No MCA registration fee for authorised capital up to ₹15 lakh — only stamp duty is payable.");
+    lines.push(["g", "PAN and TAN (through SPICe+)", R.pan + R.tan]);
+    const sd = RATES.stamp[st]; const o = ovStamp(st, "co");
+    if (o != null) lines.push(["s", "Stamp duty (SPICe+, MoA, AoA) — " + stateName(st), o]);
+    else if (!sd) notes.push(stateName(st) + " is not in MCA's stamp duty schedule — we will confirm the stamp duty.");
+    else { const s8nil = type === "s8" && (sd.s8 === "nil" || (sd.s8 === "shareonly" && !share)); const formSd = type === "s8" && sd.s8 === "shareonly" && !share ? 0 : sd.f;
+      const moa = s8nil ? 0 : share ? rule(sd.moa, cap) : sd.ns[0], aoa = s8nil ? 0 : share ? rule(sd.aoa, cap) : sd.ns[1];
+      lines.push(["s", "Stamp duty on SPICe+ form", formSd], ["s", "Stamp duty on e-MoA", moa], ["s", "Stamp duty on e-AoA", aoa]); if (sd.flag) notes.push(sd.flag); if (s8nil) notes.push("No stamp duty on MoA/AoA of a Section 8 company in " + stateName(st) + " as per MCA's schedule."); }
+    notes.push("DIN for up to three directors is allotted free through SPICe+."); }
+  const dsc = +fees.dsc || 0; if (dsc) lines.push(["p", "Digital signatures (" + people + " × " + money(dsc).replace(/\.00$/, "") + ")", dsc * people]); else notes.push("Digital signature (DSC) for each " + (type === "llp" ? "designated partner" : "director / subscriber") + " — as per vendor price.");
+  const pf = +fees[type] || 0; if (pf) { lines.push(["p", "Professional fees – " + (firm.firm || "our firm"), pf]); if (firm.gstin) lines.push(["p", "GST on professional fees @ 18%", Math.round(pf * 0.18)]); }
+  const tot = k => lines.filter(l => !k || l[0] === k).reduce((a, l) => a + (+l[2] || 0), 0);
+  return {lines, notes, govt: tot("g"), stamp: tot("s"), prof: tot("p"), total: tot(), people}; }
+
+// ----- UI
+S.calc = Object.assign({k: "itx", pk: "itx", itx: {age: "below", sal: "", oth: "", ex: "", c80: "", d80: "", hl: "", od: ""}, adv: {fy: fyOf(todayStr()), liab: "", tds: "", pres: false, p0: "", p1: "", p2: "", p3: ""},
+  pen: {dom: "gst", it: {cat: "itr12", due: "", filed: todayStr(), ti: "", tax: "", tds: "", adv: "", turn: "", under: ""}, tds: {amt: "", dDue: "", dDed: "", dPaid: "", fy: fyOf(todayStr()), q: "2", rFiled: todayStr(), tdsQ: ""},
+    gst: {ret: "3B", nil: false, to: "s", due: "", filed: todayStr(), tax: "", paid: "", aato: "", st: "", dtax: "", dfy: "new", fraud: false, stage: "pre"}, roc: {form: "aoc4", cap: "", noshare: false, due: "", filed: todayStr(), relax: true, contrib: "", small: true}},
+  inc: {type: "pvt", state: "", cap: "100000", people: "2", members: "", noshare: false, name: true}}, S.calc || {});
+const cf_ = (id, label, v, o = {}) => `<div class="field${o.span ? " span2" : ""}"><label class="lbl" for="cx-${id}">${label}</label>${o.sel ? `<select id="cx-${id}" data-cx="${id}">${o.sel.map(([k, l]) => opt(k, l, String(v) === String(k))).join("")}</select>` : o.chk ? `<label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cx-${id}" data-cx="${id}" style="width:auto" ${v ? "checked" : ""}> ${o.chk}</label>` : `<input id="cx-${id}" data-cx="${id}" ${o.date ? `type="date"` : `type="number" inputmode="decimal" step="any" min="0"`} value="${esc(v)}" placeholder="${o.ph || "0"}">`}${o.hint ? `<span class="hint">${o.hint}</span>` : ""}</div>`;
+const r0 = n => "₹" + NF.format(Math.round(n || 0)).replace(/\.00$/, "");
+const PEN_DOMS = [["it", "Income tax"], ["tds", "TDS"], ["gst", "GST"], ["roc", "ROC / LLP"]];
+const calcState = () => { const k = S.calc.k; if (k === "pen") return S.calc.pen[S.calc.pen.dom]; return S.calc[k]; };
+const MODE_SEGS = {portal: [["itx", "Old vs new regime"], ["adv", "Advance tax"], ["pen", "Late fee & penalty"], ["inc", "Incorporation cost"]], tax: [["itx", "Old vs new regime"], ["adv", "Advance tax"]], pen: [], inc: []};
+function calcPanel(mode) { mode = mode || "portal"; if (mode === "pen" || mode === "inc") S.calc.k = mode; else if (mode === "tax" && !["itx", "adv"].includes(S.calc.k)) S.calc.k = "itx"; else if (mode === "portal") S.calc.k = S.calc.pk || "itx";
+  loadRates(); const k = S.calc.k, x = calcState(); const segs = MODE_SEGS[mode] || [];
+  const seg = segs.length ? `<div class="seg">${segs.map(([a, l]) => `<button data-calc="${a}" aria-pressed="${k === a}">${tr(l)}</button>`).join("")}</div>` : `<h2>${k === "pen" ? "Late fee, interest &amp; penalty calculator" : "Incorporation cost calculator"}</h2>`;
+  const sub = k === "pen" ? `<div class="seg" style="margin-bottom:12px">${PEN_DOMS.map(([a, l]) => `<button data-pdom="${a}" aria-pressed="${S.calc.pen.dom === a}">${l}</button>`).join("")}</div>` : "";
+  const firmEdit = k === "inc" && !S.portalMode ? `<button class="btn sm" data-act="incfees">Our fees &amp; confirmed stamp duty</button>` : "";
+  return `<div class="panel calc" id="calc-root" data-mode="${mode}"><div class="panel-head">${seg}${firmEdit}</div>${sub}<div class="grid cols-2 calcgrid"><form class="formgrid" onsubmit="return false">${calcForm(k, x)}</form><div id="calc-out" aria-live="polite">${calcOut()}</div></div>
+    <p class="small muted" style="margin:12px 0 0">${tr("Estimates only — please confirm with us before filing or paying.")} Rates verified ${esc(RATES.verified)}${RATES !== RATES0 ? " (updated online)" : ""}. ${calcSources(k)}</p></div>`; }
+function calcSources(k) { const L = (t, u) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)} ↗</a>`;
+  if (k === "itx" || k === "adv") return "Sources: " + L("Income Tax Department", "https://www.incometax.gov.in/iec/foportal/");
+  if (k === "inc") return "Sources: " + L("MCA – stamp duty rates & fee rules", "https://www.mca.gov.in/content/mca/global/en/help-faq/faqs/payment2/rates-of-stamp-duty.html") + " · " + L("MCA fee calculator", "https://www.mca.gov.in/content/mca/global/en/mca/fo-llp-services/enquire-fees.html");
+  const d = S.calc.pen.dom; return "Sources: " + (d === "gst" ? L("CBIC – CGST notifications", "https://cbic-gst.gov.in/") : d === "roc" ? L("MCA – form instruction kits & fee rules", "https://www.mca.gov.in/") : L("Income Tax Department", d === "tds" ? "https://www.incometaxindia.gov.in/w/late-filing-fees-and-penalty-for-failure-to-furnish/delay-in-furnishing-the-tds/tcs-statements%E2%80%8B" : "https://www.incometax.gov.in/iec/foportal/")); }
+const stateSel = () => STATES.filter(s => +s[0] > 0 && +s[0] < 39).map(([c, n]) => [c, n]).sort((a, b) => a[1].localeCompare(b[1]));
+function calcForm(k, x) {
+  if (k === "itx") return cf_("age", "Age", x.age, {sel: [["below", "Below 60 years"], ["60", "60 to 79 years"], ["80", "80 years or more"]]}) + cf_("sal", "Salary / pension (gross, ₹)", x.sal) + cf_("oth", "Other income – business, interest, rent etc. (₹)", x.oth, {hint: "After expenses. Capital gains taxed at special rates are not included."})
+    + `<div class="span2 small muted" style="margin-top:4px"><b>Old regime only</b> — deductions and exemptions</div>` + cf_("ex", "HRA / LTA / other exemptions (₹)", x.ex) + cf_("c80", "Section 80C – PF, PPF, LIC, ELSS etc. (max ₹1.5 lakh)", x.c80) + cf_("d80", "Section 80D – health insurance (₹)", x.d80) + cf_("hl", "Home-loan interest, self-occupied (max ₹2 lakh)", x.hl) + cf_("od", "Other deductions – 80CCD(1B), 80G, 80TTA etc. (₹)", x.od);
+  if (k === "adv") return cf_("fy", "Financial year", x.fy, {sel: [fyOf(todayStr()), fyOf(todayStr()) + 1].map(y => [y, "FY " + fyLabel(y)])}) + cf_("liab", "Estimated tax for the year incl. cess (₹)", x.liab, {hint: `<button type="button" class="linkish" data-calcuse="1">Use the lower figure from the income-tax calculator</button>`}) + cf_("tds", "TDS / TCS expected (₹)", x.tds)
+    + cf_("pres", "", x.pres, {chk: "Presumptive income (section 44AD / 44ADA) — pay 100% by 15 March", span: 1}) + `<div class="span2 small muted"><b>Advance tax already paid</b> (by each due date)</div>` + ["15 Jun", "15 Sep", "15 Dec", "15 Mar"].map((d, i) => cf_("p" + i, "Paid by " + d + " (₹)", x["p" + i])).join("");
+  if (k === "inc") { if (!x.state) x.state = (S.pk ? (S.pk.client.stateCode || S.pk.firm.stateCode) : S.data && ST().stateCode) || "23";
+    return cf_("type", "Type of entity", x.type, {sel: INC_TYPES, span: 1}) + cf_("state", "State of registered office", x.state, {sel: stateSel()})
+      + (x.type === "llp" ? cf_("cap", "Total contribution of partners (₹)", x.cap, {ph: "100000"}) + cf_("people", "Designated partners", x.people, {ph: "2"}) + cf_("name", "", x.name, {chk: "Reserve the name first (RUN-LLP)", span: 1})
+        : (x.type === "s8" ? cf_("noshare", "", x.noshare, {chk: "Limited by guarantee — no share capital", span: 1}) : "") + (x.type === "s8" && x.noshare ? cf_("members", "Number of members", x.members, {ph: "7"}) : cf_("cap", "Authorised share capital (₹)", x.cap, {ph: "100000", hint: "Up to ₹15 lakh: no MCA registration fee."})) + cf_("people", x.type === "opc" ? "Director / member" : "Directors and subscribers needing a DSC", x.people, {ph: x.type === "opc" ? "1" : "2"})); }
+  const d = S.calc.pen.dom;
+  if (d === "it") return cf_("cat", "Return type (FY " + RATES.it.fy + ")", x.cat, {sel: RATES.it.due.map(r => [r[0], r[1] + " – due " + dmy(r[2])]), span: 1}) + cf_("due", "Due date (change if different)", x.due || (RATES.it.due.find(r => r[0] === x.cat) || RATES.it.due[0])[2], {date: 1}) + cf_("filed", "Filed / will file on", x.filed, {date: 1})
+    + cf_("ti", "Total income (₹)", x.ti) + cf_("tax", "Tax on total income incl. cess (₹)", x.tax) + cf_("tds", "TDS / TCS (₹)", x.tds) + cf_("adv", "Advance tax paid (₹)", x.adv)
+    + `<div class="span2 small muted" style="margin-top:4px"><b>Penalties</b> (optional)</div>` + cf_("turn", "Turnover — if tax audit was not done (₹)", x.turn) + cf_("under", "Tax on under-reported income (₹)", x.under);
+  if (d === "tds") return cf_("amt", "TDS amount (₹)", x.amt) + cf_("dDue", "Date it should have been deducted (payment / credit date)", x.dDue, {date: 1}) + cf_("dDed", "Date actually deducted", x.dDed, {date: 1, hint: "Leave blank if deducted on time."}) + cf_("dPaid", "Date deposited", x.dPaid, {date: 1})
+    + `<div class="span2 small muted" style="margin-top:4px"><b>Quarterly TDS return</b></div>` + cf_("fy", "Financial year", x.fy, {sel: [fyOf(todayStr()) - 1, fyOf(todayStr())].map(y => [y, "FY " + fyLabel(y)])}) + cf_("q", "Quarter", x.q, {sel: TDS_RET.map(q => [q[0], q[1]])}) + cf_("rFiled", "Return filed / will file on", x.rFiled, {date: 1}) + cf_("tdsQ", "Total TDS in that return (₹)", x.tdsQ, {hint: "Late fee can't exceed this."});
+  if (d === "gst") return cf_("ret", "Return", x.ret, {sel: [["3B", "GSTR-3B"], ["1", "GSTR-1"], ["9", "GSTR-9 (annual return)"], ["4", "GSTR-4 (composition annual)"]]}) + (x.ret === "9" ? cf_("aato", "Aggregate annual turnover (₹)", x.aato) + cf_("st", "Turnover in this State / UT (₹)", x.st) : (x.ret === "4" ? "" : cf_("to", "Aggregate turnover in the preceding year", x.to, {sel: [["s", "Up to ₹1.5 crore"], ["m", "₹1.5 crore to ₹5 crore"], ["l", "Above ₹5 crore"]]})) + cf_("nil", "", x.nil, {chk: "Nil return (no outward supplies / no tax payable)", span: 1}))
+    + cf_("due", "Due date", x.due, {date: 1}) + cf_("filed", "Filed / will file on", x.filed, {date: 1}) + cf_("tax", "Tax paid late in cash (₹)", x.tax, {hint: "Interest is on the net tax paid in cash."}) + cf_("paid", "Tax paid on", x.paid, {date: 1, hint: "Blank = filing date."})
+    + `<div class="span2 small muted" style="margin-top:4px"><b>Penalty on a tax demand</b> (optional)</div>` + cf_("dtax", "Tax demanded (₹)", x.dtax) + cf_("dfy", "Period of the demand", x.dfy, {sel: [["new", "FY 2024-25 onwards (section 74A)"], ["old", "Up to FY 2023-24 (sections 73 / 74)"]]}) + cf_("fraud", "", x.fraud, {chk: "Fraud / wilful misstatement / suppression alleged", span: 1}) + cf_("stage", "When paid", x.stage, {sel: DEM_STAGES[x.dfy === "old" ? "old" : "new"][x.fraud ? "f" : "nf"].map(s => [s[0], s[1]]), span: 1});
+  const f = ROC_FORMS.find(r => r[0] === x.form) || ROC_FORMS[0]; const llp = f[2] === "llp8" || f[2] === "llp11";
+  return cf_("form", "Form", x.form, {sel: ROC_FORMS.map(r => [r[0], r[1]]), span: 1}) + (f[2] === "kyc" ? "" : llp ? cf_("contrib", "Total contribution (₹)", x.contrib) + cf_("small", "", x.small, {chk: "Small LLP (as defined in section 2(1)(ta))"}) : cf_("noshare", "", x.noshare, {chk: "Company without share capital"}) + (x.noshare ? "" : cf_("cap", "Authorised (nominal) share capital (₹)", x.cap)))
+    + cf_("due", "Due date", x.due, {date: 1}) + cf_("filed", "Filed / will file on", x.filed, {date: 1}) + (f[2] === "day" ? cf_("relax", "", x.relax, {chk: "Accounts for FY " + RATES.roc.relax.fy + " (no additional fee till " + dmy(f[0] === "aoc4" ? RATES.roc.relax.aoc4 : RATES.roc.relax.mgt7) + ")", span: 1}) : ""); }
+const rowT = (l, v, o = {}) => `<tr${o.tot ? ` class="tot"` : ""}><td>${l}</td><td class="r num">${v}</td></tr>`;
+function calcOut() { const k = S.calc.k, x = calcState();
+  if (k === "itx") { const r = incomeTax(x); if (!(+x.sal || +x.oth)) return `<div class="empty"><strong>Enter your income</strong>See tax under both regimes side by side.</div>`;
+    const row = (l, a, b, bold) => `<tr${bold ? ` class="tot"` : ""}><td>${l}</td><td class="r num">${a}</td><td class="r num">${b}</td></tr>`; const o = r.old, n = r.new;
+    return `<div class="calcres"><div class="calcwin ${r.better}">${r.better === "same" ? "Both regimes give the same tax." : `<b>${r.better === "new" ? "New" : "Old"} regime saves ${r0(r.saving)}</b>`}</div>
+      <div class="tablewrap"><table><thead><tr><th></th><th class="r">Old regime</th><th class="r">New regime</th></tr></thead><tbody>
+      ${row("Gross income", r0(o.gross), r0(n.gross))}${row("Standard deduction", "−" + r0(o.std), "−" + r0(n.std))}${row("Deductions & exemptions", o.ded ? "−" + r0(o.ded) : "—", "—")}${row("Taxable income", r0(o.ti), r0(n.ti), 1)}
+      ${row("Tax on slabs", r0(o.base), r0(n.base))}${row("Rebate (incl. marginal relief)", o.rebate ? "−" + r0(o.rebate) : "—", n.rebate ? "−" + r0(n.rebate) : "—")}${o.sc || n.sc ? row("Surcharge", r0(o.sc), r0(n.sc)) : ""}${row("Health & education cess 4%", r0(o.cess), r0(n.cess))}
+      ${row("Total tax payable", r0(o.pay), r0(n.pay), 1)}</tbody></table></div>
+      <p class="small muted">New regime: nil up to ₹4 lakh, then 5% to 30%; rebate makes tax nil up to ₹12 lakh taxable income (₹12.75 lakh for salaried). Old regime rebate up to ₹12,500 for income up to ₹5 lakh. Surcharge above ₹50 lakh with marginal relief (new regime capped at 25%).</p></div>`; }
+  if (k === "adv") { const r = advTax(x); if (!(+x.liab)) return `<div class="empty"><strong>Enter the estimated tax</strong>Get the instalments and interest for any shortfall.</div>`;
+    if (!r.need) return `<div class="calcres"><div class="calcwin same"><b>No advance tax needed</b> — tax after TDS (${r0(r.net)}) is below ₹10,000.</div></div>`;
+    return `<div class="calcres"><div class="calcwin new"><b>Tax after TDS: ${r0(r.net)}</b>${r.int ? ` · Interest u/s 234C about ${r0(r.int)}` : " · No 234C interest on these payments"}</div><div class="tablewrap"><table><thead><tr><th>Due date</th><th class="r">Cumulative</th><th class="r">Pay by then</th><th class="r">Paid</th><th class="r">Shortfall</th><th class="r">234C</th></tr></thead><tbody>
+      ${r.rows.map(w => `<tr><td class="num">${dmy(w.d)}</td><td class="r num">${Math.round(w.pct * 100)}%</td><td class="r num">${r0(w.req)}</td><td class="r num">${r0(w.cum)}</td><td class="r num ${w.short ? "amt-out" : ""}">${w.short ? r0(w.short) : "—"}</td><td class="r num">${w.charge ? r0(w.charge) : "—"}</td></tr>`).join("")}</tbody></table></div>
+      <p class="small muted">234C: 1% a month on the shortfall — 3 months each for June, September and December (no interest if 12% / 36% was paid by June / September), 1 month for March. If less than 90% is paid by 31 March, interest u/s 234B also applies. A resident senior citizen without business income need not pay advance tax.</p></div>`; }
+  if (k === "inc") { const r = incCost(x); if (!(+x.cap) && !(x.type === "s8" && x.noshare)) return `<div class="empty"><strong>Enter the ${x.type === "llp" ? "contribution" : "authorised capital"}</strong>See government fees, stamp duty and the total cost.</div>`;
+    const grp = (k2, t) => { const ls = r.lines.filter(l => l[0] === k2); return ls.length ? `<tr class="sub"><td colspan="2">${t}</td></tr>` + ls.map(l => rowT(esc(l[1]), l[2] ? r0(l[2]) : "Nil")).join("") : ""; };
+    return `<div class="calcres"><div class="calcwin new"><b>Estimated total: ${r0(r.total)}</b>${r.prof ? ` · Government ${r0(r.govt + r.stamp)} + professional ${r0(r.prof)}` : ""}</div>
+      <div class="tablewrap"><table><tbody>${grp("g", "MCA / government fees")}${grp("s", "Stamp duty")}${grp("p", "Professional & DSC")}${rowT("Total", r0(r.total), {tot: 1})}</tbody></table></div>
+      ${r.notes.length ? `<ul class="small muted calcnotes">${r.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}<p class="small muted">Stamp duty as per ${esc(RATES.inc.mcaSched)}. The MCA portal calculates the exact amount at filing.</p></div>`; }
+  const d = S.calc.pen.dom;
+  if (d === "it") { const r = penIT(x); const tot = r.fee + r.iA + r.iB; const rows = rowT("Late filing fee (section 234F)", r.late ? r0(r.fee) + (r.fee === RATES.it.feeLow ? " <span class='meta'>income up to ₹5 lakh</span>" : "") : "Nil — on time") + rowT("Interest u/s 234A (" + r.mA + " month" + (r.mA === 1 ? "" : "s") + " on " + r0(fl100(r.unpaid)) + ")", r0(r.iA)) + rowT("Interest u/s 234B" + (r.short ? " (" + r.mB + " months — advance tax below 90%)" : ""), r.short ? r0(r.iB) : "Nil") + rowT("Total", r0(tot), {tot: 1});
+    const pens = (r.p271B ? rowT("Penalty u/s 271B — no tax audit (0.5% of turnover, max ₹1.5 lakh)", r0(r.p271B)) : "") + (r.pUnder ? rowT("Penalty u/s 270A — under-reporting (50% of tax)", r0(r.pUnder)) + rowT("Penalty u/s 270A — misreporting (200% of tax)", r0(r.pMis)) : "");
+    return `<div class="calcres"><div class="calcwin ${tot ? "old" : "same"}"><b>${r.late ? daysBetween(r.due, r.filed) + " days after the due date (" + dmy(r.due) + ")" : "Within the due date"}</b> · Fee + interest ${r0(tot)}</div><div class="tablewrap"><table><tbody>${rows}${pens}</tbody></table></div>
+      <p class="small muted">Interest is 1% a month or part of a month on the tax still payable (rounded down to ₹100); 234B runs from 1 April ${+RATES.it.fy.slice(0, 4) + 1} to the date of filing. Fee u/s 234F is ₹5,000 (₹1,000 if total income is up to ₹5 lakh). For FY ${RATES.it.fy} returns under the Income-tax Act, 1961; 234C — see the advance-tax calculator.</p></div>`; }
+  if (d === "tds") { const r = penTDS(x); const tot = r.i1 + r.i2 + r.fee;
+    return `<div class="calcres"><div class="calcwin ${tot ? "old" : "same"}"><b>Interest + late fee ${r0(tot)}</b>${r.depDue ? " · Deposit was due by " + dmy(r.depDue) : ""}</div><div class="tablewrap"><table><tbody>
+      ${rowT("Interest — late deduction, 1% × " + r.m1 + " month" + (r.m1 === 1 ? "" : "s"), r0(r.i1))}${rowT("Interest — late deposit, 1.5% × " + r.m2 + " month" + (r.m2 === 1 ? "" : "s"), r0(r.i2))}
+      ${rowT("Late fee u/s 234E — ₹200 × " + r.days + " days (return due " + dmy(r.rd) + ")", r0(r.fee) + (r.fee && r.fee === r.tdsQ ? " <span class='meta'>capped at TDS</span>" : ""))}${rowT("Total", r0(tot), {tot: 1})}
+      ${rowT("Penalty u/s 271H (late / incorrect return)", r.penRisk ? "₹10,000 to ₹1,00,000 may apply" : "Not attracted if filed within 1 month of the due date with fee and interest paid")}</tbody></table></div>
+      <p class="small muted">Interest is counted per month or part of a month (calendar months, as TRACES computes). TDS deposit is due by the 7th of the next month (30 April for March).</p></div>`; }
+  if (d === "gst") { const r = penGST(x); const dm = +x.dtax ? penDemand(x) : null; if (!x.due && !dm) return `<div class="empty"><strong>Enter the due date</strong>And the date you filed, to see the late fee and interest.</div>`;
+    return `<div class="calcres">${x.due ? `<div class="calcwin ${r.fee || r.interest ? "old" : "same"}"><b>${r.days ? r.days + " day" + (r.days === 1 ? "" : "s") + " late" : "Filed on time"}</b> · Late fee ${r0(r.fee)}${+x.tax ? " · Interest " + r0(r.interest) : ""}</div>
+      <div class="tablewrap"><table><tbody>${rowT("Late fee per day", "₹" + r.per + " (₹" + r.per / 2 + " CGST + ₹" + r.per / 2 + " SGST)")}${rowT("Maximum late fee", r.cap ? r0(r.cap) + (r.capNote ? " <span class='meta'>" + r.capNote + "</span>" : "") : "—")}${rowT("Late fee payable", r0(r.fee) + " <span class='meta'>CGST " + r0(r.cgst) + " + SGST " + r0(r.sgst) + "</span>", {tot: 1})}${+x.tax ? rowT("Interest 18% for " + r.idays + " days on " + r0(x.tax), r0(r.interest)) : ""}</tbody></table></div>` : ""}
+      ${dm ? `<div class="tablewrap" style="margin-top:6px"><table><tbody>${rowT("Penalty u/s " + dm.sec + " — " + esc(dm.st[1].toLowerCase()), dm.pen ? r0(dm.pen) : "Nil", {tot: 1})}</tbody></table></div>` : ""}
+      <p class="small muted">Late fee: GSTR-3B / GSTR-1 ₹50 a day (₹20 nil), capped ₹2,000 / ₹5,000 / ₹10,000 by turnover (₹500 nil) — Notifications 19/2021 &amp; 20/2021; GSTR-9 ₹50 / ₹100 / ₹200 a day by turnover, capped 0.04% / 0.04% / 0.5% — Notification 07/2023; GSTR-4 ₹50 a day, max ₹2,000 (₹500 nil). Interest 18% u/s 50 (also for ITC wrongly availed and utilised). ${x.ret === "1" ? "GSTR-1 late fee is added in the next GSTR-3B. " : ""}${x.ret === "9" ? "GSTR-9 is optional for turnover up to ₹2 crore. " : ""}Returns can't be filed after 3 years from the due date.</p></div>`; }
+  const r = penROC(x); if (!x.due) return `<div class="empty"><strong>Enter the due date</strong>And the filing date, to see the MCA additional fee${r.f[2] === "day" ? " and penalty" : ""}.</div>`;
+  return `<div class="calcres"><div class="calcwin ${r.add ? "old" : "same"}"><b>${r.days ? r.days + " days late" : "On time"}</b> · ${r.f[2] === "kyc" ? "Fee" : "Normal fee " + r0(r.normal) + " + additional"} ${r0(r.add)}</div>
+    <div class="tablewrap"><table><tbody>${r.f[2] === "kyc" ? "" : rowT("Normal filing fee", r0(r.normal))}${rowT(r.f[2] === "kyc" ? "Late fee" : "Additional fee", r0(r.add))}${rowT("Total payable to MCA", r0(r.normal + r.add), {tot: 1})}
+      ${r.pen && r.days ? rowT("Penalty risk u/s " + r.pen.sec + " — company (₹10,000 + ₹100 a day, max ₹2 lakh)", r0(r.pen.co)) + rowT("— each officer in default (max ₹50,000)", r0(r.pen.off)) : ""}</tbody></table></div>
+    <p class="small muted">${esc(r.note)} Normal fee by authorised capital: ₹200 / ₹300 / ₹400 / ₹500 / ₹600 (below ₹1 lakh / ₹5 lakh / ₹25 lakh / ₹1 crore / above). Penalties are levied by the ROC on adjudication, separate from MCA fees.</p></div>`; }
+function bindCalc(root) { if (!root || root.dataset.cb) return; root.dataset.cb = 1;
+  const rerender = () => { const t = document.createElement("div"); t.innerHTML = calcPanel(root.dataset.mode); const nb = t.firstElementChild; root.replaceWith(nb); bindCalc(nb); };
+  const upd = e => { const id = e.target.dataset.cx; if (!id) return; const x = calcState(); x[id] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    if (["type", "noshare", "ret", "form", "cat", "dfy", "fraud"].includes(id) && e.type === "change") { if (id === "cat") x.due = ""; if (id === "dfy" || id === "fraud") x.stage = "pre"; return rerender(); } const o = $("#calc-out"); if (o) o.innerHTML = calcOut(); };
+  root.addEventListener("input", upd); root.addEventListener("change", upd);
+  root.addEventListener("click", e => { const b = e.target.closest("[data-calc],[data-calcuse],[data-pdom]"); if (!b) return; e.preventDefault();
+    if (b.dataset.calcuse) { const r = incomeTax(S.calc.itx); if (!(+S.calc.itx.sal || +S.calc.itx.oth)) { toast("Fill the income-tax calculator first."); return; } S.calc.adv.liab = String(Math.min(r.old.pay, r.new.pay)); }
+    else if (b.dataset.pdom) S.calc.pen.dom = b.dataset.pdom; else { S.calc.k = b.dataset.calc; if (root.dataset.mode === "portal") S.calc.pk = b.dataset.calc; } rerender(); }); }
+// ----- firm: own fees + confirmed stamp duty (shown to clients on the portal)
+function incFeesForm() { const s = ST(); const f = s.incFees || {}; const ov = s.rateOv || {}; const st = S.calc.inc.state || s.stateCode || "23";
+  openModal(`<div class="modal-head"><div><div class="small muted">Incorporation cost calculator</div><h2>Our fees &amp; confirmed stamp duty</h2></div><button class="x" data-close aria-label="Close">×</button></div>
+    <p class="small muted" style="margin-top:0">These appear in the calculator here and on every client portal. Leave blank to hide a line.</p>
+    <div class="formgrid">${INC_TYPES.map(([k, l]) => `<div class="field"><label class="lbl" for="if-${k}">Professional fee – ${esc(l)} (₹)</label><input id="if-${k}" type="number" min="0" value="${esc(f[k] || "")}"></div>`).join("")}
+      <div class="field"><label class="lbl" for="if-dsc">DSC price per person (₹)</label><input id="if-dsc" type="number" min="0" value="${esc(f.dsc || "")}"></div></div>
+    <h3 style="margin:16px 0 6px">Confirmed stamp duty for ${esc(stateName(st))}</h3><p class="small muted" style="margin-top:0">Only if you have confirmed a different total from the MCA fee calculator or the State stamp authority.</p>
+    <div class="formgrid"><div class="field"><label class="lbl" for="if-co">Company — total stamp duty (₹)</label><input id="if-co" type="number" min="0" value="${esc(ov["co:" + st] ?? "")}" placeholder="Use MCA schedule"></div><div class="field"><label class="lbl" for="if-llp">LLP agreement — stamp duty (₹)</label><input id="if-llp" type="number" min="0" value="${esc(ov["llp:" + st] ?? "")}" placeholder="Use indicative rate"></div></div>
+    <div class="modal-foot"><span></span><div class="right"><button class="btn" data-close>Cancel</button><button class="btn primary" id="if-save">Save</button></div></div>`, "wide");
+  $("#if-save").addEventListener("click", () => { const nf = {}; for (const [k] of INC_TYPES) { const v = $("#if-" + k).value; if (v !== "") nf[k] = +v; } if ($("#if-dsc").value !== "") nf.dsc = +$("#if-dsc").value;
+    const no = {...(s.rateOv || {})}; for (const [k, id] of [["co", "if-co"], ["llp", "if-llp"]]) { const v = $("#" + id).value; if (v === "") delete no[k + ":" + st]; else no[k + ":" + st] = +v; }
+    s.incFees = nf; s.rateOv = no; s.updatedAt = nowIso(); commit(); closeModal(); if (typeof schedulePortals === "function") { schedulePortals(); scheduleSite(); } toast("Saved — clients see these on their portal"); }); }
+document.addEventListener("click", e => { if (e.target.closest("[data-act=incfees]") && S.data && !S.portalMode) incFeesForm(); });
+
 // ================= Tools tab: time & profitability, UDIN register, reconciliations, GSTR-1, calculators · onboarding · ⌘K search =================
-S.tl = {view: ls.get("tlview", "time"), month: todayStr().slice(0, 7), staff: "", q: ""};
-const TL_VIEWS = [["time", "Time log"], ["profit", "Client profitability"], ["udin", "UDIN register"], ["tds", "26AS / AIS TDS"], ["bank", "Bank import"], ["gstr1", "GSTR-1 export"], ["calc", "Tax calculators"]];
+S.tl = {view: ls.get("tlview", "pen")}; if (!["pen", "inc", "calc", "bank", "gstr1"].includes(S.tl.view)) S.tl.view = "pen";
+const TL_VIEWS = [["pen", "Late fee, interest & penalty"], ["inc", "Incorporation cost"], ["calc", "Income tax & advance tax"], ["bank", "Bank import"], ["gstr1", "GSTR-1 export"]];
 function vTools() { const v = S.tl.view;
   const seg = `<div class="seg toolseg">${TL_VIEWS.map(([k, l]) => `<button data-tlv="${k}" aria-pressed="${v === k}">${l}</button>`).join("")}</div>`;
-  const body = {time: vTime, profit: vProfit, udin: vUdin, tds: vTds26, bank: vBank, gstr1: vGstr1, calc: calcPanel}[v] || vTime;
+  const body = {pen: () => calcPanel("pen"), inc: () => calcPanel("inc"), calc: () => calcPanel("tax"), bank: vBank, gstr1: vGstr1}[v] || (() => calcPanel("pen"));
   return `<div class="stack"><div class="panel" style="padding:10px 12px">${seg}</div>${body()}</div>`; }
-function bindTools() { const cr = $("#calc-root"); if (cr) bindCalc(cr); if (S.tl.view === "time") bindTime(); if (S.tl.view === "bank") bindBank(); if (S.tl.view === "tds") bindTds(); }
+function bindTools() { const cr = $("#calc-root"); if (cr) bindCalc(cr); if (S.tl.view === "bank") bindBank(); }
 document.addEventListener("click", e => { if (S.portalMode || !S.data) return; const b = e.target.closest("[data-tlv],[data-tact]"); if (!b || b.closest("#modal-root") && !b.dataset.tact) return; const d = b.dataset;
   if (d.tlv) { S.tl.view = d.tlv; ls.set("tlview", d.tlv); dirty(); return; }
-  const a = d.tact; if (a === "udinnew") return udinForm(null); if (a === "udinedit") return udinForm(D().udin.find(x => x.id === d.id)); if (a === "onboard") return onboard(); if (a === "compbulk") return compBulk();
-  if (a === "timedel") { if (!b.dataset.c) { b.dataset.c = 1; b.textContent = "Confirm"; return; } removeRec("time", d.id); commit(); return; }
-  if (a === "rates") return ratesForm(); if (a === "timer") return timerToggle();
-  if (a === "exp") { const spec = d.k === "profit" ? specProfit(S.fy) : d.k === "udin" ? specUdin() : d.k === "time" ? specTime(S.tl.month) : d.k === "tds" ? specTds26() : null; if (!spec) return; b.disabled = true; exportSpec(spec, d.f).finally(() => b.disabled = false); return; }
+  const a = d.tact; if (a === "onboard") return onboard(); if (a === "compbulk") return compBulk();
   if (a === "gstr1") return gstr1Export(b);
 });
-
-// ----- staff time log
-const parseMins = v => { v = String(v || "").trim(); if (!v) return 0; const m = v.match(/^(\d+):(\d{1,2})$/); if (m) return +m[1] * 60 + +m[2]; const h = v.match(/^(\d+(?:\.\d+)?)\s*h?$/i); return h ? Math.round(+h[1] * 60) : 0; };
-const fmtMins = m => Math.floor(m / 60) + ":" + pad(m % 60);
-const staffAll = () => [...new Set([...(ST().staff || []), ...(ST().signatory ? [ST().signatory] : []), ...D().time.map(t => t.staff).filter(Boolean)])];
-const rateOf = n => +((ST().rates || {})[n] || 0);
-const TASKS = ["GST return", "TDS return", "Income-tax return", "Audit", "Tax audit", "Accounting", "ROC filing", "Notice reply", "Client meeting", "Certificate", "Advisory", "Other"];
-function vTime() { const T = S.tl; const rows = D().time.filter(t => t.date.slice(0, 7) === T.month && (!T.staff || t.staff === T.staff)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""));
-  const staff = staffAll(); const by = new Map(); let tot = 0, cost = 0; for (const t of rows) { by.set(t.staff, (by.get(t.staff) || 0) + t.mins); tot += t.mins; cost += t.mins / 60 * rateOf(t.staff); }
-  const tm = ls.get("timer", null);
-  return `<div class="panel"><div class="panel-head"><h2>Record time</h2><div class="actions"><button class="btn sm ${tm ? "primary" : ""}" data-tact="timer">${tm ? "■ Stop timer · " + esc(lname(tm.client)) : "▶ Start timer"}</button><button class="btn sm" data-tact="rates">Team &amp; hourly cost</button></div></div>
-    <form id="tm-form" class="formgrid tmgrid" novalidate><div class="field"><label class="lbl" for="tm-date">Date</label><input id="tm-date" type="date" value="${todayStr()}"></div>
-      <div class="field"><label class="lbl" for="tm-staff">Staff</label><input id="tm-staff" list="dl-tms" value="${esc(ls.get("tmstaff", staff[0] || ""))}"><datalist id="dl-tms">${staff.map(x => `<option value="${esc(x)}"></option>`).join("")}</datalist></div>
-      <div class="field"><label class="lbl" for="tm-client">Client</label><select id="tm-client"><option value="">Choose…</option>${clients().map(c => opt(c.id, c.name)).join("")}<option value="firm">Firm / internal (non-chargeable)</option></select></div>
-      <div class="field"><label class="lbl" for="tm-task">Work</label><input id="tm-task" list="dl-tmt" placeholder="e.g. GST return – Oct"><datalist id="dl-tmt">${TASKS.map(x => `<option value="${esc(x)}"></option>`).join("")}</datalist></div>
-      <div class="field"><label class="lbl" for="tm-h">Time (h:mm or hours)</label><input id="tm-h" placeholder="1:30"></div><div class="field" style="align-self:end"><button class="btn primary" type="submit">Add</button></div></form><div class="err" id="tm-err"></div></div>
-  <div class="panel"><div class="panel-head"><div class="filters"><select id="tm-month" aria-label="Month">${fyMonths(S.fy).map(m => opt(m, monLabel(m), T.month === m)).join("")}</select>${staff.length ? `<select id="tm-fs" aria-label="Staff"><option value="">Everyone</option>${staff.map(x => opt(x, x, T.staff === x)).join("")}</select>` : ""}</div>
-    <div class="actions"><span class="pill">${fmtMins(tot)} h</span>${cost ? `<span class="pill">Cost ${money(cost)}</span>` : ""}<button class="btn sm" data-tact="exp" data-k="time" data-f="pdf">PDF</button><button class="btn sm" data-tact="exp" data-k="time" data-f="xlsx">Excel</button></div></div>
-    ${by.size > 1 ? `<div class="filters" style="margin-bottom:10px">${[...by].map(([n, m]) => `<span class="pill">${esc(n || "—")}: ${fmtMins(m)}</span>`).join("")}</div>` : ""}
-    ${rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Staff</th><th>Client</th><th>Work</th><th class="r">Time</th><th class="r">Cost</th><th></th></tr></thead><tbody>${rows.map(t => `<tr><td class="num">${dmy(t.date)}</td><td>${esc(t.staff || "—")}</td><td>${esc(t.client === "firm" ? "Firm / internal" : lname(t.client))}</td><td class="small">${esc(t.task || "")}</td><td class="r num">${fmtMins(t.mins)}</td><td class="r num">${rateOf(t.staff) ? money(t.mins / 60 * rateOf(t.staff)) : "—"}</td><td class="r"><button class="btn sm ghost" data-tact="timedel" data-id="${t.id}">Delete</button></td></tr>`).join("")}</tbody></table></div>`
-      : `<div class="empty"><strong>No time recorded in ${monLabel(T.month)}</strong>Record hours per client to see which clients are profitable.</div>`}</div>`; }
-function bindTime() { const on = (id, ev, fn) => { const el = $("#" + id); if (el) el.addEventListener(ev, fn); };
-  on("tm-month", "change", e => { S.tl.month = e.target.value; dirty(); }); on("tm-fs", "change", e => { S.tl.staff = e.target.value; dirty(); });
-  const tm = ls.get("timer", null); if (tm && $("#tm-client")) { $("#tm-client").value = tm.client; $("#tm-task").value = tm.task || ""; }
-  on("tm-form", "submit", e => { e.preventDefault(); const g = id => ($("#" + id).value || "").trim(); const err = $("#tm-err"); const mins = parseMins(g("tm-h"));
-    if (!g("tm-client")) return err.textContent = "Choose the client."; if (!mins) return err.textContent = "Enter the time, e.g. 1:30 or 1.5."; if (mins > 24 * 60) return err.textContent = "That's more than 24 hours.";
-    upsert("time", {id: "tm-" + uid(), date: g("tm-date") || todayStr(), staff: g("tm-staff"), client: g("tm-client"), task: g("tm-task"), mins, createdAt: nowIso()}); ls.set("tmstaff", g("tm-staff")); commit(); toast("Time recorded · " + fmtMins(mins) + " h"); }); }
-function timerToggle() { const tm = ls.get("timer", null);
-  if (!tm) { const c = ($("#tm-client") || {}).value; if (!c) return toast("Choose the client first, then start the timer."); ls.set("timer", {start: Date.now(), client: c, task: ($("#tm-task") || {}).value || "", staff: ($("#tm-staff") || {}).value || ""}); dirty(); toast("Timer started for " + (c === "firm" ? "firm work" : lname(c))); return; }
-  const mins = Math.max(1, Math.round((Date.now() - tm.start) / 60000)); ls.set("timer", null); if (ls.del) ls.del("timer");
-  upsert("time", {id: "tm-" + uid(), date: todayStr(), staff: tm.staff, client: tm.client, task: tm.task, mins, createdAt: nowIso()}); commit(); toast("Timer stopped · " + fmtMins(mins) + " h recorded"); }
-function ratesForm() { const st = staffAll(); const r = ST().rates || {};
-  openModal(`<div class="modal-head"><div><div class="small muted">For client profitability</div><h2>Team &amp; hourly cost</h2></div><button class="x" data-close aria-label="Close">×</button></div>
-    <p class="small muted" style="margin-top:0">Cost per hour = salary (or your own expected rate) ÷ chargeable hours. Rates stay in your encrypted ledger and never go to clients.</p>
-    <div class="field"><label class="lbl" for="rt-names">Team members (comma separated)</label><input id="rt-names" value="${esc((ST().staff || []).join(", "))}"></div>
-    <div class="formgrid" id="rt-list" style="margin-top:10px">${st.map(n => `<div class="field"><label class="lbl">${esc(n)} – ₹ per hour</label><input type="number" min="0" step="1" data-rt="${esc(n)}" value="${esc(r[n] || "")}"></div>`).join("")}</div>
-    <div class="modal-foot"><span></span><div class="right"><button class="btn" data-close>Cancel</button><button class="btn primary" id="rt-save">Save</button></div></div>`);
-  $("#rt-save").addEventListener("click", () => { const s = ST(); s.staff = $("#rt-names").value.split(",").map(x => x.trim()).filter(Boolean); s.rates = {...(s.rates || {})}; $$("[data-rt]").forEach(i => { s.rates[i.dataset.rt] = +i.value || 0; }); s.updatedAt = nowIso(); commit(); closeModal(); toast("Team and hourly cost saved"); }); }
-function specTime(m) { const rows = D().time.filter(t => t.date.slice(0, 7) === m).sort((a, b) => a.date.localeCompare(b.date)); let tm = 0, tc = 0;
-  const out = rows.map(t => { const c = t.mins / 60 * rateOf(t.staff); tm += t.mins; tc += c; return {c: [dmy(t.date), t.staff || "", t.client === "firm" ? "Firm / internal" : lname(t.client), t.task || "", fmtMins(t.mins), r2(c)]}; }); out.push({c: ["Total", "", "", "", fmtMins(tm), r2(tc)], t: "grand"});
-  return {title: "Staff Time Log", subtitle: monLabel(m), sheet: "Time log", fileName: "Time log " + monLabel(m), tables: [{cols: [C("Date", 20), C("Staff", 28), C("Client", 56), C("Work", 50), C("Hours", 16, "r"), C("Cost (₹)", 24, "r")], rows: out}]}; }
-
-// ----- client profitability
-function profitRows(y) { const m = new Map(); const get = id => { if (!m.has(id)) m.set(id, {fees: 0, n: 0, mins: 0, cost: 0}); return m.get(id); };
-  for (const v of vouchers()) if (v.type === "sales" && inFY(v.date, y) && led(v.f.party)) { const o = get(v.f.party); o.fees += calcInvoice(v.f).taxable; o.n++; }
-  for (const t of D().time) if (t.client !== "firm" && inFY(t.date, y) && led(t.client)) { const o = get(t.client); o.mins += t.mins; o.cost += t.mins / 60 * rateOf(t.staff); }
-  return [...m].map(([id, o]) => ({id, ...o, fees: r2(o.fees), cost: r2(o.cost), profit: r2(o.fees - o.cost), margin: o.fees ? (o.fees - o.cost) / o.fees : null, perHr: o.mins ? o.fees / (o.mins / 60) : null})).sort((a, b) => b.fees - a.fees); }
-function vProfit() { const rows = profitRows(S.fy); const T = rows.reduce((a, r) => ({fees: a.fees + r.fees, cost: a.cost + r.cost, mins: a.mins + r.mins}), {fees: 0, cost: 0, mins: 0}); const noRates = !Object.values(ST().rates || {}).some(x => +x);
-  const pc = x => x == null ? "—" : Math.round(x * 100) + "%";
-  return `<div class="grid cols-4"><div class="panel stat hero"><div class="label">Fees · FY ${fyLabel(S.fy)}</div><div class="value">${money(T.fees)}</div><div class="foot">Before GST, excluding reimbursements</div></div><div class="panel stat"><div class="label">Hours recorded</div><div class="value">${fmtMins(T.mins)}</div><div class="foot">From the time log</div></div>
-    <div class="panel stat"><div class="label">Time cost</div><div class="value">${money(T.cost)}</div><div class="foot">Hours × hourly cost</div></div><div class="panel stat"><div class="label">Fee per hour</div><div class="value">${T.mins ? money(T.fees / (T.mins / 60)) : "—"}</div><div class="foot">Average realisation</div></div></div>
-  <div class="panel"><div class="panel-head"><h2>Client profitability</h2><div class="actions"><button class="btn sm" data-tact="rates">Hourly cost</button><button class="btn sm" data-tact="exp" data-k="profit" data-f="pdf">PDF</button><button class="btn sm" data-tact="exp" data-k="profit" data-f="xlsx">Excel</button></div></div>
-    ${noRates ? `<div class="notice" style="margin-bottom:10px">Add each team member's hourly cost (button above) to see profit per client.</div>` : ""}
-    ${rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Client</th><th class="r">Invoices</th><th class="r">Fees</th><th class="r">Hours</th><th class="r">Cost</th><th class="r">Profit</th><th class="r">Margin</th><th class="r">Fee / hour</th></tr></thead><tbody>${rows.map(r => `<tr class="click" data-client="${r.id}"><td><b>${esc(lname(r.id))}</b></td><td class="r num">${r.n}</td><td class="r num">${money(r.fees)}</td><td class="r num">${r.mins ? fmtMins(r.mins) : "—"}</td><td class="r num">${r.cost ? money(r.cost) : "—"}</td><td class="r num ${r.profit < 0 ? "amt-out" : ""}"><b>${money(r.profit)}</b></td><td class="r num">${r.margin != null && r.margin < 0.2 && r.cost ? `<span class="pill out">${pc(r.margin)}</span>` : pc(r.margin)}</td><td class="r num">${r.perHr ? money(r.perHr) : "—"}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>No invoices or time in FY ${fyLabel(S.fy)}</strong></div>`}</div>`; }
-function specProfit(y) { const rows = profitRows(y); const T = rows.reduce((a, r) => ({fees: a.fees + r.fees, cost: a.cost + r.cost, mins: a.mins + r.mins}), {fees: 0, cost: 0, mins: 0});
-  const out = rows.map(r => ({c: [lname(r.id), String(r.n), r.fees, r.mins ? fmtMins(r.mins) : "", r.cost, r.profit, r.margin == null ? "" : Math.round(r.margin * 100) + "%", r.perHr ? r2(r.perHr) : ""]})); out.push({c: ["Total", "", r2(T.fees), fmtMins(T.mins), r2(T.cost), r2(T.fees - T.cost), T.fees ? Math.round((T.fees - T.cost) / T.fees * 100) + "%" : "", T.mins ? r2(T.fees / (T.mins / 60)) : ""], t: "grand"});
-  return {title: "Client Profitability", subtitle: "FY " + fyLabel(y), sheet: "Profitability", fileName: "Client profitability FY " + fyLabel(y), landscape: true, tables: [{cols: [C("Client", 70), C("Invoices", 18, "r"), C("Fees (₹)", 30, "r"), C("Hours", 18, "r"), C("Cost (₹)", 28, "r"), C("Profit (₹)", 30, "r"), C("Margin", 18, "r"), C("Fee / hour (₹)", 26, "r")], rows: out}],
-    notes: ["Fees are invoice values before GST and excluding reimbursements. Cost is recorded time × each person's hourly cost."]}; }
-
-// ----- UDIN register
-const UDIN_TYPES = ["Certificate", "Statutory audit report", "Tax audit report (3CA/3CB-3CD)", "GST / other audit report", "Net worth certificate", "Turnover certificate", "Form 15CB", "Other attest document"];
-const udinOK = u => /^\d{8}[A-Z0-9]{10}$/.test(u);
-const udinWarn = u => { if (!u) return ""; if (u.length !== 18) return "A UDIN has 18 characters (now " + u.length + ")."; if (!udinOK(u)) return "Format: 2-digit year + 6-digit membership no. + 10 letters/numbers.";
-  const mn = String(ST().memNo || "").replace(/\D/g, ""); if (mn && u.slice(2, 8) !== mn.padStart(6, "0").slice(-6)) return "Characters 3–8 should be your membership number (" + mn + ")."; return ""; };
-function vUdin() { const q = (S.tl.q || "").toLowerCase(); const rows = D().udin.filter(u => !q || [u.udin, lname(u.client), u.type, u.part].join(" ").toLowerCase().includes(q)).sort((a, b) => b.date.localeCompare(a.date));
-  return `<div class="panel"><div class="panel-head"><div class="filters"><input id="ud-q" type="search" placeholder="Search UDIN, client, document" value="${esc(S.tl.q || "")}"></div><div class="actions"><span class="pill">${D().udin.length} UDINs</span><button class="btn sm" data-tact="exp" data-k="udin" data-f="pdf">PDF</button><button class="btn sm" data-tact="exp" data-k="udin" data-f="xlsx">Excel</button><button class="btn primary" data-tact="udinnew">+ Add UDIN</button></div></div>
-    <p class="small muted" style="margin-top:0">Certificates written in Letters with a UDIN are added here automatically. Generate UDINs on <a href="https://udin.icai.org/" target="_blank" rel="noopener">udin.icai.org ↗</a>.</p>
-    ${rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>UDIN</th><th>Client</th><th>Document</th><th>Particulars</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(u => `<tr><td class="num">${dmy(u.date)}</td><td class="num"><b>${esc(u.udin)}</b>${udinWarn(u.udin) ? `<div class="meta amt-out">${esc(udinWarn(u.udin))}</div>` : ""}</td><td>${esc(lname(u.client))}</td><td class="small">${esc(u.type)}</td><td class="small">${esc(u.part || "")}${u.fig ? `<div class="meta">${money(u.fig)}</div>` : ""}</td><td>${u.revoked ? `<span class="pill out">Revoked</span>` : `<span class="pill in">Active</span>`}</td><td class="r"><button class="btn sm" data-tact="udinedit" data-id="${u.id}">Edit</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><strong>No UDINs recorded${q ? " match" : " yet"}</strong>Keep every UDIN with the client, document and date for peer review.</div>`}</div>`; }
-document.addEventListener("input", e => { if (e.target.id === "ud-q") { S.tl.q = e.target.value; dirty(); } });
-function udinForm(u) { const p = u || {date: todayStr(), type: UDIN_TYPES[0]};
-  openModal(`<div class="modal-head"><h2>${u ? "Edit UDIN" : "Add UDIN"}</h2><button class="x" data-close aria-label="Close">×</button></div>
-    <div class="formgrid"><div class="field"><label class="lbl" for="ud-date">Date of signing</label><input id="ud-date" type="date" value="${esc(p.date)}"></div><div class="field"><label class="lbl" for="ud-no">UDIN</label><input id="ud-no" maxlength="18" value="${esc(p.udin || "")}" style="text-transform:uppercase"><span class="hint" id="ud-hint"></span></div>
-      <div class="field"><label class="lbl" for="ud-cl">Client</label><select id="ud-cl"><option value="">Choose…</option>${clients().map(c => opt(c.id, c.name, c.id === p.client)).join("")}</select></div><div class="field"><label class="lbl" for="ud-t">Document</label><select id="ud-t">${UDIN_TYPES.map(t => opt(t, t, t === p.type)).join("")}</select></div>
-      <div class="field span2"><label class="lbl" for="ud-p">Particulars (purpose, FY, addressed to)</label><input id="ud-p" value="${esc(p.part || "")}"></div><div class="field"><label class="lbl" for="ud-f">Key figure (₹, optional)</label><input id="ud-f" type="number" step="0.01" value="${esc(p.fig || "")}"></div>
-      <div class="field"><label class="lbl" for="ud-st">Status</label><select id="ud-st">${opt("", "Active", !p.revoked)}${opt("1", "Revoked", !!p.revoked)}</select></div></div><div class="err" id="ud-err"></div>
-    <div class="modal-foot">${u ? `<button class="btn danger" id="ud-del">Delete</button>` : "<span></span>"}<div class="right"><button class="btn" data-close>Cancel</button><button class="btn primary" id="ud-save">Save</button></div></div>`);
-  const hint = () => { const v = $("#ud-no").value.trim().toUpperCase(); $("#ud-hint").textContent = udinWarn(v) || (v.length === 18 ? "Looks right." : ""); }; $("#ud-no").addEventListener("input", hint); hint();
-  $("#ud-save").addEventListener("click", () => { const no = $("#ud-no").value.trim().toUpperCase(); const err = $("#ud-err"); if (!udinOK(no)) return err.textContent = "Enter the 18-character UDIN (2-digit year, 6-digit membership no., 10 letters/numbers).";
-    const dup = D().udin.find(x => x.udin === no && (!u || x.id !== u.id)); if (dup) return err.textContent = "This UDIN is already recorded for " + lname(dup.client) + ".";
-    upsert("udin", {...(u || {id: "ud-" + uid(), createdAt: nowIso()}), date: $("#ud-date").value || todayStr(), udin: no, client: $("#ud-cl").value, type: $("#ud-t").value, part: $("#ud-p").value.trim(), fig: r2($("#ud-f").value) || 0, revoked: !!$("#ud-st").value}); commit(); closeModal(); toast("UDIN saved"); });
-  const del = $("#ud-del"); if (del) del.addEventListener("click", () => { if (!del.dataset.c) { del.dataset.c = 1; del.textContent = "Confirm delete"; return; } removeRec("udin", u.id); commit(); closeModal(); }); }
-function udinFromLetter(l, def) { const no = String((l.f || {}).udin || "").trim().toUpperCase(); if (!no) return; const id = "ud-" + l.id; const cur = D().udin.find(x => x.id === id);
-  if (cur && cur.udin === no && cur.date === l.date) return; if (D().udin.some(x => x.udin === no && x.id !== id)) return;
-  const fig = r2((l.f || {}).turnover || (l.f || {}).networth || 0); upsert("udin", {...(cur || {createdAt: nowIso()}), id, date: l.date, udin: no, client: l.client, type: /net worth/i.test(def.n) ? "Net worth certificate" : /turnover/i.test(def.n) ? "Turnover certificate" : "Certificate", part: def.n + ((l.f || {}).purpose ? " – " + l.f.purpose : "") + (l.ref ? " · Ref " + l.ref : ""), fig, letter: l.id}); }
-function specUdin() { const rows = D().udin.slice().sort((a, b) => a.date.localeCompare(b.date)).map(u => ({c: [dmy(u.date), u.udin, lname(u.client), u.type, u.part || "", u.fig ? r2(u.fig) : "", u.revoked ? "Revoked" : "Active"]}));
-  return {title: "UDIN Register", subtitle: "As on " + dLong(todayStr()), sheet: "UDIN", fileName: "UDIN register " + dmy(todayStr()), landscape: true, tables: [{cols: [C("Date", 20), C("UDIN", 40), C("Client", 50), C("Document", 40), C("Particulars", 70), C("Figure (₹)", 26, "r"), C("Status", 18)], rows: rows.length ? rows : [{c: ["", "No UDINs", "", "", "", "", ""]}]}]}; }
 
 // ----- client onboarding wizard
 const ONB_STEPS = ["Client details", "Compliance", "Engagement & fees", "Set up"];
@@ -5909,15 +6022,14 @@ function paletteItems() { const it = [];
   for (const [k, l] of TABS) it.push({g: "Go to", t: l, run: () => { S.tab = k; ls.set("tab", k); dirty(); }});
   for (const [k, l] of TL_VIEWS) it.push({g: "Tools", t: l, run: () => { S.tab = "tools"; S.tl.view = k; ls.set("tab", "tools"); dirty(); }});
   [["New invoice", () => invoiceForm(null)], ["New receipt", () => voucherForm("receipt", null)], ["New payment", () => voucherForm("payment", null)], ["New journal", () => voucherForm("journal", null)], ["New contra", () => voucherForm("contra", null)],
-    ["Onboard a new client", () => onboard()], ["Add UDIN", () => udinForm(null)], ["Email compliance reminders", () => compBulk()], ["Email payment reminders", () => bulkRemind()], ["Backup now", () => doBackup()]].forEach(([t, run]) => it.push({g: "Actions", t, run}));
+    ["Onboard a new client", () => onboard()], ["Email compliance reminders", () => compBulk()], ["Email payment reminders", () => bulkRemind()], ["Backup now", () => doBackup()]].forEach(([t, run]) => it.push({g: "Actions", t, run}));
   for (const c of clients()) it.push({g: "Clients", t: c.name, s: [c.pan, c.gstin, c.phone, c.city].filter(Boolean).join(" · "), run: () => clientCard(c.id)});
   for (const l of D().ledgers) if (!isClient(l) && l.active !== false) it.push({g: "Ledgers", t: l.name, s: G(l.group).name, run: () => { S.sel = l.id; S.tab = "ledgers"; dirty(); }});
   for (const v of vouchers().slice().reverse()) it.push({g: v.type === "sales" ? "Invoices" : "Vouchers", t: (v.type === "sales" ? v.no : vno(v)) + " · " + vParty(v), s: dmy(v.date) + " · " + money(vAmount(v)) + (v.f && v.f.rno ? " · " + v.f.rno : "") + (v.narration ? " · " + v.narration : "") + (v.ref ? " · " + v.ref : ""), run: () => openVoucher(v)});
   for (const l of D().letters) it.push({g: "Letters", t: (ltDef(l.tpl) || {n: "Letter"}).n + " · " + lname(l.client), s: [l.ref, dmy(l.date)].filter(Boolean).join(" · "), run: () => { S.tab = "letters"; dirty(); letterOpen(l.id); }});
-  for (const u of D().udin) it.push({g: "UDIN", t: u.udin, s: lname(u.client) + " · " + u.type, run: () => udinForm(u)});
   return it; }
 function palette() { const all = paletteItems(); let sel = 0, shown = [];
-  openModal(`<div class="pal"><input id="pal-q" type="search" placeholder="Search clients, invoices, vouchers, letters, UDIN — or type a command" autocomplete="off" aria-label="Search"><div id="pal-list" role="listbox"></div><div class="small muted pal-foot">↑ ↓ to move · Enter to open · Esc to close</div></div>`, "pal-modal");
+  openModal(`<div class="pal"><input id="pal-q" type="search" placeholder="Search clients, invoices, vouchers, letters — or type a command" autocomplete="off" aria-label="Search"><div id="pal-list" role="listbox"></div><div class="small muted pal-foot">↑ ↓ to move · Enter to open · Esc to close</div></div>`, "pal-modal");
   const q = $("#pal-q"), box = $("#pal-list");
   const draw = () => { const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
     shown = (words.length ? all.filter(x => { const h = (x.t + " " + (x.s || "") + " " + x.g).toLowerCase(); return words.every(w => h.includes(w)); }) : all.filter(x => x.g === "Actions" || x.g === "Go to")).slice(0, 40);
@@ -5966,50 +6078,7 @@ function mapForm(title, head, fields, map, cb) {
     if (miss.length) return $("#mp-err").textContent = "Choose a column for: " + miss.map(f => f.l).join(", "); closeModal(); cb(m); }); }
 const pickTable = (accept, cb) => { const i = document.createElement("input"); i.type = "file"; i.accept = accept; i.onchange = async () => { const f = i.files[0]; if (!f) return; try { cb(await readTable(f), f.name); } catch (e) { console.warn(e); toast(e.message === "pdf" ? "PDF statements can't be read — download the statement as Excel or CSV from net banking / TRACES." : e.message === "lib" ? "Excel files need an internet connection the first time — or save the file as CSV." : "Couldn't read that file."); } }; i.click(); };
 
-// ----- 26AS / AIS TDS reconciliation
-const TANRE = /\b([A-Z]{4}\d{5}[A-Z])\b/;
 const normName = s => String(s || "").toUpperCase().replace(/\b(PRIVATE|PVT|LIMITED|LTD|LLP|THE|M\/S|AND|CO|COMPANY|OPC)\b|[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-S.t26 = null;
-function parse26AS(rows) { // TRACES text: "Sr^Name of Deductor^TAN^^^^Paid^Deducted^Deposited" under PART-A
-  const out = []; let part = "A", sawPart = false;
-  for (const r of rows) { const joined = r.join("^"); const pm = joined.match(/PART[\s-]*([A-Z]\d?)\b/i); if (pm && r.filter(x => x).length <= 3) { part = pm[1].toUpperCase(); sawPart = true; continue; }
-    if (sawPart && part !== "A") continue; if (!/^\d+$/.test(String(r[0]).trim()) || !TANRE.test(String(r[2] || ""))) continue;
-    const nums = r.slice(3).map(x => String(x).trim()).filter(x => /^-?[\d,]+(\.\d+)?$/.test(x)).map(numAny); if (nums.length < 2) continue;
-    out.push({name: String(r[1]).trim(), tan: String(r[2]).trim(), paid: nums.length >= 3 ? nums[nums.length - 3] : 0, tds: nums[nums.length - 2]}); }
-  return out; }
-const T26_FIELDS = [{k: "name", l: "Deductor name", re: /deductor|name|information source|source/}, {k: "tan", l: "TAN of deductor", re: /\btan\b/, opt: 1}, {k: "paid", l: "Amount paid / credited", re: /amount paid|paid|credited|gross/, opt: 1}, {k: "tds", l: "TDS deducted", re: /tax deducted|tds deducted|\btds\b|deducted/, not: /date|deposit/}];
-function import26(rows) { const ts = parse26AS(rows); if (ts.length) return finish26(ts, "26AS text file");
-  const g = guessMap(rows, T26_FIELDS); const head = g ? g.head : (rows[0] || []).map((x, i) => String(x) || "Column " + (i + 1));
-  mapForm("26AS / AIS TDS", head, T26_FIELDS, g ? g.map : {}, m => { const start = g ? g.hi + 1 : 1; const agg = new Map();
-    for (const r of rows.slice(start)) { const nm = String(r[m.name] || "").trim(); const tds = numAny(r[m.tds]); if (!nm || !tds) continue; const tm = (m.tan != null ? String(r[m.tan]) : "") .match(TANRE) || nm.match(TANRE); const tan = tm ? tm[1] : "";
-      const k = tan || normName(nm); const o = agg.get(k) || {name: nm.replace(/\(?[A-Z]{4}\d{5}[A-Z]\)?/, "").trim(), tan, paid: 0, tds: 0}; o.paid += m.paid != null ? numAny(r[m.paid]) : 0; o.tds += tds; agg.set(k, o); }
-    finish26([...agg.values()], "imported sheet"); }); }
-function finish26(list, src) { if (!list.length) return toast("No TDS rows found in that file."); S.t26 = {list, src, at: nowIso()}; dirty(); toast(list.length + " deductors read from the " + src); }
-function matchClient(d) { if (d.forceClient && led(d.forceClient)) return led(d.forceClient); const cl = clients(); let c = d.tan && cl.find(x => (x.tan || "").toUpperCase() === d.tan); if (c) return c; const n = normName(d.name); if (!n) return null;
-  c = cl.find(x => normName(x.name) === n); if (c) return c; const hits = cl.filter(x => { const m = normName(x.name); return m.length > 4 && (n.includes(m) || m.includes(n)); }); return hits.length === 1 ? hits[0] : null; }
-function recon26() { const y = S.fy; const books = new Map(); for (const v of vouchers()) if (v.type === "receipt" && +v.f.tds && inFY(v.date, y)) { const o = books.get(v.f.party) || {tds: 0, gross: 0, n: 0}; o.tds += +v.f.tds; o.gross += +v.f.amount + +v.f.tds; o.n++; books.set(v.f.party, o); }
-  const rows = []; const seen = new Set();
-  for (const d of (S.t26 || {list: []}).list) { const c = matchClient(d); const b = c ? books.get(c.id) : null; if (c) seen.add(c.id);
-    const ex = rows.find(r => c && r.c && r.c.id === c.id); if (ex) { ex.as += d.tds; ex.paid += d.paid; ex.tans.add(d.tan); continue; }
-    rows.push({c, name: d.name, tans: new Set([d.tan]), as: d.tds, paid: d.paid, bk: b ? b.tds : 0, gross: b ? b.gross : 0}); }
-  for (const [id, b] of books) if (!seen.has(id)) rows.push({c: led(id), name: lname(id), tans: new Set([(led(id) || {}).tan || ""]), as: 0, paid: 0, bk: b.tds, gross: b.gross});
-  for (const r of rows) { r.diff = r2(r.as - r.bk); r.st = !r.c ? "nomatch" : Math.abs(r.diff) <= 1 ? "ok" : r.as === 0 ? "missing" : r.bk === 0 ? "notbooks" : r.diff < 0 ? "short" : "more"; }
-  return rows.sort((a, b) => ({nomatch: 0, missing: 1, short: 2, notbooks: 3, more: 4, ok: 5})[a.st] - ({nomatch: 0, missing: 1, short: 2, notbooks: 3, more: 4, ok: 5})[b.st] || Math.abs(b.diff) - Math.abs(a.diff)); }
-const T26ST = {ok: ["Matched", "in"], missing: ["Not in 26AS – ask client to file / correct TDS return", "out"], short: ["Less in 26AS – ask client to correct TDS return", "out"], notbooks: ["In 26AS, not in books – record TDS on the receipt", "warn"], more: ["More in 26AS than books – check receipts", "warn"], nomatch: ["Deductor not matched to a client", "warn"]};
-function vTds26() { const rows = S.t26 ? recon26() : []; const tot = rows.reduce((a, r) => ({as: a.as + r.as, bk: a.bk + r.bk}), {as: 0, bk: 0});
-  return `<div class="panel"><div class="panel-head"><div><h2>TDS reconciliation · FY ${fyLabel(S.fy)}</h2><div class="small muted">TDS deducted by clients as per your receipts vs. Form 26AS / AIS</div></div><div class="actions"><button class="btn primary" id="t26-in">Import 26AS / AIS file</button>${rows.length ? `<button class="btn sm" data-tact="exp" data-k="tds" data-f="pdf">PDF</button><button class="btn sm" data-tact="exp" data-k="tds" data-f="xlsx">Excel</button>` : ""}</div></div>
-    ${S.t26 ? `<div class="grid cols-4" style="margin-bottom:12px"><div class="panel stat"><div class="label">As per 26AS</div><div class="value">${money(tot.as)}</div><div class="foot">${S.t26.list.length} deductors</div></div><div class="panel stat"><div class="label">As per books</div><div class="value">${money(tot.bk)}</div><div class="foot">TDS on client receipts</div></div><div class="panel stat ${Math.abs(tot.as - tot.bk) > 1 ? "hero" : ""}"><div class="label">Difference</div><div class="value">${money(tot.as - tot.bk)}</div><div class="foot">26AS minus books</div></div><div class="panel stat"><div class="label">To follow up</div><div class="value">${rows.filter(r => r.st !== "ok").length}</div><div class="foot">of ${rows.length}</div></div></div>
-      <div class="tablewrap"><table class="wide"><thead><tr><th>Client / deductor</th><th>TAN</th><th class="r">26AS</th><th class="r">Books</th><th class="r">Difference</th><th>Status</th><th class="r"></th></tr></thead><tbody>${rows.map((r, i) => `<tr><td><b>${esc(r.c ? r.c.name : r.name)}</b>${r.c && normName(r.c.name) !== normName(r.name) && r.as ? `<div class="meta">26AS: ${esc(r.name)}</div>` : ""}</td><td class="num small">${esc([...r.tans].filter(Boolean).join(", ") || "—")}</td><td class="r num">${dash(r.as)}</td><td class="r num">${dash(r.bk)}</td><td class="r num ${Math.abs(r.diff) > 1 ? "amt-out" : ""}">${Math.abs(r.diff) > 1 ? money(r.diff) : "—"}</td><td><span class="pill ${T26ST[r.st][1]}">${esc(T26ST[r.st][0])}</span></td>
-        <td class="r">${r.st === "nomatch" ? `<select data-t26link="${i}" aria-label="Link to client" style="max-width:180px"><option value="">Link to client…</option>${clients().map(c => opt(c.id, c.name)).join("")}</select>` : (r.st === "missing" || r.st === "short") && r.c ? `<button class="btn sm" data-t26rem="${r.c.id}" data-amt="${r2(-r.diff)}">Remind client</button>` : ""}</td></tr>`).join("")}</tbody></table></div>
-      <p class="small muted" style="margin:10px 0 0">26AS shows TDS by the deductor's date of payment/credit, so year-end timing differences are normal. Linking a deductor saves its TAN on the client for next time.</p>`
-    : `<div class="empty"><strong>Import your Form 26AS or AIS</strong>Download the 26AS text file from TRACES (View Tax Credit → Export as Text), or the AIS/TDS details as CSV/Excel from the e-filing portal, and import it here. The file stays on this device.</div>`}</div>`; }
-function bindTds() { const b = $("#t26-in"); if (b) b.addEventListener("click", () => pickTable(".txt,.csv,.tsv,.xlsx,.xls", rows => import26(rows)));
-  $$("[data-t26link]").forEach(s => s.addEventListener("change", () => { if (!s.value) return; const r = recon26()[+s.dataset.t26link]; const tan = [...r.tans].find(Boolean); const c = led(s.value); if (tan) { upsert("ledgers", {...c, tan}); commit(); toast("TAN " + tan + " saved for " + c.name); } else { const d = S.t26.list.find(x => x.name === r.name); if (d) d.forceClient = c.id; toast("Linked"); dirty(); } }));
-  $$("[data-t26rem]").forEach(b2 => b2.addEventListener("click", () => { const c = led(b2.dataset.t26rem); compose("email", {client: c.id, kind: "blank", subject: "TDS not reflecting in Form 26AS – " + ST().firm,
-    text: `Dear {client},\n\nWhile reconciling our Form 26AS for FY ${fyLabel(S.fy)}, we notice that TDS of about ${money(+b2.dataset.amt)} deducted by you on our professional fees is not reflecting.\n\nKindly check your TDS return (Form 26Q) — our PAN is ${ST().pan || "(PAN)"} — and file a correction if needed. Please also share the Form 16A certificates.\n\nThank you.\n\nRegards,\n{signatory}\n{firm}`}); })); }
-function specTds26() { const rows = recon26(); const out = rows.map(r => ({c: [r.c ? r.c.name : r.name, [...r.tans].filter(Boolean).join(", "), r2(r.as), r2(r.bk), r2(r.diff), T26ST[r.st][0]]})); const T = rows.reduce((a, r) => [a[0] + r.as, a[1] + r.bk], [0, 0]); out.push({c: ["Total", "", r2(T[0]), r2(T[1]), r2(T[0] - T[1]), ""], t: "grand"});
-  return {title: "TDS Reconciliation – Form 26AS vs Books", subtitle: "FY " + fyLabel(S.fy) + " · source: " + ((S.t26 || {}).src || ""), sheet: "26AS recon", fileName: "TDS reconciliation FY " + fyLabel(S.fy), landscape: true, tables: [{cols: [C("Client / deductor", 70), C("TAN", 28), C("26AS (₹)", 26, "r"), C("Books (₹)", 26, "r"), C("Difference (₹)", 26, "r"), C("Status", 80)], rows: out}]}; }
-
 // ----- bank statement import & auto-match
 S.bk = null;
 const BK_FIELDS = [{k: "date", l: "Date", re: /date/, not: /value date/}, {k: "narr", l: "Narration / description", re: /narration|description|particular|remark|details/}, {k: "ref", l: "Cheque / ref. no.", re: /chq|cheque|ref|utr/, opt: 1},
@@ -6204,10 +6273,10 @@ async function linkFile() { try { const h = await window.showSaveFilePicker({sug
 // ---------- boot ----------
 async function boot() {
   if (MODE === "portalweb") { S.portalMode = true; S.locked = true; try { S.portalMeta = JSON.parse($("#pna-site").textContent); } catch { S.portalMeta = {}; }
-    const t = (location.hash || "").match(/^#c?([a-z0-9]{8,})$/); S.portalToken = t ? t[1] : ""; render();
-    window.addEventListener("hashchange", () => { const t2 = (location.hash || "").match(/^#c?([a-z0-9]{8,})$/); S.portalToken = t2 ? t2[1] : ""; S.locked = true; S.pk = null; S.data = null; closeModal(); render(); }); return; }
+    const t = (location.hash || "").match(/^#c?([a-z0-9]{8,})(?:\/(.*))?$/); S.portalToken = t ? t[1] : ""; S.portalName = t && t[2] ? decodeURIComponent(t[2]).replace(/-/g, " ").slice(0, 120) : ""; render();
+    window.addEventListener("hashchange", () => { const t2 = (location.hash || "").match(/^#c?([a-z0-9]{8,})(?:\/(.*))?$/); S.portalToken = t2 ? t2[1] : ""; S.portalName = t2 && t2[2] ? decodeURIComponent(t2[2]).replace(/-/g, " ").slice(0, 120) : ""; S.locked = true; S.pk = null; S.data = null; closeModal(); render(); }); return; }
   if (MODE === "portalfile") { S.portalMode = true; try { S.portalMeta = {firm: JSON.parse($("#pna-packet").textContent).firm}; } catch {} render(); return; }
-  const tok = (location.hash || "").match(/^#c([a-z0-9]{8,})$/); if (ONLINE && tok) { S.portalMode = true; S.portalToken = tok[1]; }
+  const tok = (location.hash || "").match(/^#c([a-z0-9]{8,})(?:\/(.*))?$/); if (ONLINE && tok) { S.portalMode = true; S.portalToken = tok[1]; S.portalName = tok[2] ? decodeURIComponent(tok[2]).replace(/-/g, " ").slice(0, 120) : ""; }
   if (!ONLINE) { if (!cryptoOK()) { S.hasVault = false; render(); return; } S.hasVault = !!(await Store.get("vault"));
     try { const h = await Store.get("fileHandle"); if (h && typeof h === "object" && h.name) { S.fileHandle = h; S.fileName = h.name; } } catch {} render(); return; }
   render(); let tries = 0; while (!(window.claude && window.claude.use) && tries < 30) { await new Promise(r => setTimeout(r, 100)); tries++; }
