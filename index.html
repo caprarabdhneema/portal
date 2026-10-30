@@ -504,8 +504,29 @@ body.ios .nav-motto{display:none;font-family:var(--mot);font-size:13.5px;color:v
 @media (min-width:980px){body.ios .mast-in{max-width:none}body.ios .mast{padding-left:28px;padding-right:28px}body.ios .nav-motto{display:block}body.ios .nav-l{max-width:calc(50% - 60px)}}
 @media (max-width:979px){body.ios .mast .mast-btn{display:none}body.ios .mast-brand .appicon{width:44px;height:44px;font-size:15px}body.ios .mast-firm{font-size:20px}}
 @media (max-width:560px){body.ios .mt-city{display:none}body.ios .mast-motto blockquote{font-size:15px}}
+/* official CA logo: white tile, original proportions */
+.calogo{--lh:48px;display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:14px;padding:8px 10px;flex:none;box-shadow:0 1px 2px rgba(0,0,0,.08);line-height:0}
+.calogo img{display:block;height:var(--lh);width:auto;max-width:none}
+.calogo.set{--lh:56px;border:1px solid var(--line)}
+.mh .calogo.mh-logo{--lh:58px;padding:9px 12px;border-radius:16px;box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 1px rgba(226,196,111,.45)}
+.lockcard .calogo.lk-logo{--lh:64px;padding:10px 14px;margin:0 auto;border:1px solid var(--line)}
+@media (max-width:760px){.mh .calogo.mh-logo{--lh:44px;padding:7px 9px;border-radius:12px}}
+body.ios .mast .calogo.mast-logo{--lh:42px;padding:7px 9px;border-radius:12px;box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 1px rgba(226,196,111,.45)}
+@media (min-width:980px){body.ios .mast .calogo.mast-logo{--lh:56px;padding:9px 12px;border-radius:15px}}
+body.ios .lk .calogo.lk-logo{--lh:66px;padding:11px 15px;border-radius:20px;box-shadow:0 14px 30px -14px rgba(19,36,74,.45),0 0 0 1px var(--i-sep)}
+.salrow{grid-template-columns:86px 1fr}
+/* daily corner: thought / did-you-know / smile */
+.quote .q-k{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:999px;margin-bottom:8px;background:var(--accent-soft);color:var(--accent)}
+.quote.k-f .q-k{background:var(--in-soft);color:var(--in)}.quote.k-s .q-k{background:var(--warn-soft);color:var(--warn)}
+.quote blockquote.hi{font-family:var(--mot);font-style:normal;font-size:18px;line-height:1.6}
+.quote.k-f blockquote,.quote.k-s blockquote{font-style:normal}
+.quote .q-gloss{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.45}
+body.ios .quote .q-k{background:rgba(31,56,100,.09);color:var(--i-tint)}body.ios .quote.k-f .q-k{background:rgba(47,158,88,.14);color:var(--i-green)}body.ios .quote.k-s .q-k{background:rgba(227,138,20,.15);color:var(--i-orange)}
+body.ios .qcard .q-gloss{color:var(--i-sec);font-size:14px}body.ios .qcard blockquote.hi{font-size:20px}
+body.ios .qcard .quote.k-f blockquote,body.ios .qcard .quote.k-s blockquote{font-family:var(--sys);font-size:16.5px;line-height:1.5}
+body.ios .qcard .quote{padding:0}body.ios .qcard .qnav{position:static;transform:none;justify-content:flex-end;gap:8px;margin-top:10px}body.ios .qcard .qnav .x{width:32px;height:32px}
 </style></head>
-<body><div class="wrap" id="app"></div><div id="modal-root"></div><script type="application/json" id="pna-site">{"firm":"Prarabdh Neema & Associates","motto":"सही हिसाब केवल खातों का नहीं, विश्वास का भी होता है।","mottoBy":"सीए दिलीप नीमा","mottoRole":"Founder & Inspiration","tagline":"Chartered Accountants","phone":"+91-8889956002","email":"caprarabdhneema@outlook.com","website":""}</script><script>//---------------------------------------------------------------------
+<body><div class="wrap" id="app"></div><div id="modal-root"></div><script type="application/json" id="pna-site">{"firm":"Prarabdh Neema & Associates","caLogo":"","caLogoR":0,"motto":"सही हिसाब केवल खातों का नहीं, विश्वास का भी होता है।","mottoBy":"सीए दिलीप नीमा","mottoRole":"Founder & Inspiration","tagline":"Chartered Accountants","phone":"+91-8889956002","email":"caprarabdhneema@outlook.com","website":""}</script><script>//---------------------------------------------------------------------
 //
 // QR Code Generator for JavaScript
 //
@@ -2923,6 +2944,16 @@ function newData(firm, start, cash) {
   const t = nowIso(); const led = sysLedgers(t); led[0].opening = r2(cash);
   return {v: 2, settings: defaultSettings(firm, start, t), groups: [], ledgers: led, vouchers: [], msgs: [], docs: [], comp: [], letters: [], log: [], tomb: {}};
 }
+// salutation for a client's contact person (Mr./Ms./Dr./CA…)
+const SALUTES = ["Mr.", "Ms.", "Mrs.", "Dr.", "CA", "CS", "CMA", "Adv.", "Prof.", "Shri", "Smt."];
+const hasSal = n => /^(mr|mrs|ms|miss|dr|shri|sri|smt|ca|cs|cma|adv|prof|er|capt|col)\b\.?\s/i.test(String(n || "").trim());
+const contactName = c => { const n = String((c && c.contact) || "").trim(); return !n ? "" : hasSal(n) || !c.sal ? n : c.sal + " " + n; };
+// official CA India logo (uploaded by the member from ICAI) — always on white, never stretched
+const caLogoTile = (s, cls) => s && s.caLogo ? `<span class="calogo ${cls || ""}"><img src="${s.caLogo}" alt="CA India logo"></span>` : "";
+async function prepLogo(file) { const url = URL.createObjectURL(file); try { const im = new Image(); im.src = url; await im.decode();
+    const iw = im.naturalWidth || im.width || 600, ih = im.naturalHeight || im.height || 400; const H = Math.min(420, Math.max(ih, 240)), W = Math.round(iw / ih * H);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H);
+    return {src: cv.toDataURL("image/png"), r: +(W / H).toFixed(4)}; } finally { URL.revokeObjectURL(url); } }
 const MOTTO_DEFAULT = ["सही हिसाब केवल खातों का नहीं, विश्वास का भी होता है।", "सीए दिलीप नीमा", "Founding Member"];
 function defaultSettings(firm, start, t) {
   return {id: "settings", updatedAt: t, firm: firm || "Prarabdh Neema & Associates", tagline: "Chartered Accountants", motto: MOTTO_DEFAULT[0], mottoBy: MOTTO_DEFAULT[1], mottoRole: MOTTO_DEFAULT[2],
@@ -3179,7 +3210,7 @@ const fileBase = m => ("Invoice " + (m.v.no || "") + " " + (m.c.name || "")).rep
 // ---------- HTML (preview, .html file, print) ----------
 const INV_CSS = `.inv{--n:${NAVY};--g:${GOLD};font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:${INK};background:#fff;width:210mm;min-height:297mm;padding:0 14mm 14mm;box-sizing:border-box;position:relative;font-size:10pt;line-height:1.35}
 .inv *{box-sizing:border-box}.inv .bar{height:5mm;background:var(--n);margin:0 -14mm;border-bottom:1mm solid var(--g)}
-.inv .head{display:flex;justify-content:space-between;gap:8mm;padding-top:6mm;border-bottom:.6mm solid var(--n);padding-bottom:3mm}
+.inv .head{display:flex;justify-content:space-between;gap:8mm;padding-top:6mm;border-bottom:.6mm solid var(--n);padding-bottom:3mm}.inv .lh{display:flex;gap:4.5mm;align-items:flex-start;min-width:0}.inv .calogo-doc{height:17mm;width:auto;max-width:30mm;object-fit:contain;flex:none;background:#fff}
 .inv .firm{font-family:"Times New Roman",Times,Georgia,serif;font-size:21pt;font-weight:700;color:var(--n);line-height:1.1}
 .inv .tag{color:var(--g);font-weight:700;letter-spacing:.18em;font-size:8.5pt;text-transform:uppercase;margin-top:1mm}
 .inv .addr{color:${MUTED};font-size:8.5pt;margin-top:1.5mm}.inv .ids{text-align:right;font-size:8.5pt;white-space:nowrap}.inv .motto{margin-top:2mm;font-family:"PNA Motto","Tiro Devanagari Hindi","Kohinoor Devanagari","Noto Serif Devanagari","Nirmala UI",serif;color:${GOLD};font-size:10.5pt;white-space:normal}.inv .ids b{color:var(--n)}
@@ -3203,8 +3234,8 @@ const INV_CSS = `.inv{--n:${NAVY};--g:${GOLD};font-family:Calibri,Carlito,"Segoe
 function authHTML(a) { return `<div class="auth">${a.qr ? `<img src="${a.qr}" alt="Verification QR code">` : ""}<b>${esc(a.code)}</b>Verification code<br>Generated ${esc(fmtTime(a.at))}</div>`; }
 function signHTML(s, a) { return `<div class="sign"><div>For <b>${esc(s.firm)}</b></div><div class="muted">${esc(s.tagline)}</div><div class="sp">${a.seal ? `<img class="seal" src="${a.seal}" alt="Firm seal">` : ""}${a.sign ? `<img class="sig" src="${a.sign}" alt="Signature">` : ""}</div>
   <div><b>${esc(s.signatory)}</b></div><div class="muted">${[s.designation, s.memNo ? "M. No. " + s.memNo : ""].filter(Boolean).map(esc).join(" · ")}</div><div class="as">Authorised signatory</div></div>`; }
-function letterheadHTML(s, ids) { return `<div class="bar"></div><div class="head"><div><div class="firm">${esc(s.firm)}</div><div class="tag">${esc(s.tagline)}</div>
-    <div class="addr">${[s.addr1, s.addr2].filter(Boolean).map(esc).join(" &nbsp;|&nbsp; ")}${(s.phone || s.email || s.website) ? "<br>" + [s.phone, s.email, s.website].filter(Boolean).map(esc).join(" &nbsp;·&nbsp; ") : ""}</div></div>
+function letterheadHTML(s, ids) { return `<div class="bar"></div><div class="head"><div class="lh">${s.caLogo ? `<img class="calogo-doc" src="${s.caLogo}" alt="CA India logo">` : ""}<div><div class="firm">${esc(s.firm)}</div><div class="tag">${esc(s.tagline)}</div>
+    <div class="addr">${[s.addr1, s.addr2].filter(Boolean).map(esc).join(" &nbsp;|&nbsp; ")}${(s.phone || s.email || s.website) ? "<br>" + [s.phone, s.email, s.website].filter(Boolean).map(esc).join(" &nbsp;·&nbsp; ") : ""}</div></div></div>
     <div class="ids">${ids.map(r => `<div><b>${r[0]}:</b> ${esc(r[1])}</div>`).join("")}${mottoHTML(s)}</div></div>`; }
 function invoiceHTML(m) {
   const s = m.s, e = esc;
@@ -3238,15 +3269,16 @@ function mottoImg(s) { const t = String((s && s.motto) || "").trim(); if (!t || 
 const mottoRun = (s, p) => s && s.motto ? p(`<w:r><w:rPr><w:rFonts w:ascii="Nirmala UI" w:hAnsi="Nirmala UI" w:cs="Nirmala UI"/><w:color w:val="9A7B1E"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t xml:space="preserve">${String(s.motto).replace(/&/g, "&amp;").replace(/</g, "&lt;")}</w:t></w:r>`, {align: "right", before: 60}) : "";
 const mottoHTML = s => s && s.motto ? `<div class="motto">${esc(s.motto)}</div>` : "";
 function drawLetterhead(R, s, W, ids) {
-  const L = 14, RX = W - 14;
+  const RX = W - 14; let L = 14;
   R.rect(0, 0, W, 5, {fill: NAVY}); R.rect(0, 5, W, 1, {fill: GOLD});
+  let lb = 0; if (s.caLogo) { const h = 17, w = Math.min(30, h * (s.caLogoR || 1.5)); R.image(s.caLogo, L, 9.5, w, h); L += w + 4.5; lb = 9.5 + h; }
   let y = 17; R.text(s.firm, L, y, {size: 20, bold: true, font: "serif", color: NAVY});
   y += 5.5; R.text((s.tagline || "").toUpperCase().split("").join(" "), L, y, {size: 7.5, bold: true, color: GOLD});
   y += 4.5; R.text([s.addr1, s.addr2].filter(Boolean).join("  |  "), L, y, {size: 8, color: MUTED});
   if (s.phone || s.email || s.website) { y += 3.8; R.text([s.phone, s.email, s.website].filter(Boolean).join("  ·  "), L, y, {size: 8, color: MUTED}); }
   let yi = 13; for (const [k, v] of ids) { R.text(k + ": " + v, RX, yi, {size: 8.5, align: "right", bold: k === "GSTIN", color: k === "GSTIN" ? NAVY : INK}); yi += 4; }
   const mi = mottoImg(s); if (mi) { const h = 4.6, w = Math.min(92, mi.w / mi.h * h); const my = Math.max(yi - 1.2, y - 3.2); R.image(mi.src, RX - w + 1, my, w, h); yi = Math.max(yi, my + h + 1.5); }
-  y = Math.max(y, yi) + 3; R.line(L, y, RX, y, {color: NAVY, w: 0.6}); return y;
+  y = Math.max(y, yi, lb) + 3; R.line(14, y, RX, y, {color: NAVY, w: 0.6}); return y;
 }
 function drawAuthSign(R, s, a, y, RX, withQR, qrX) {
   // QR + verification code
@@ -3317,7 +3349,7 @@ async function invoicePDF(m) { await needLib("pdf"); const doc = new window.jspd
   doc.setProperties({title: fileBase(m), author: m.s.firm, creator: m.s.firm, subject: "Verification code " + m.auth.code}); drawInvoice(pdfR(doc), m); return doc.output("blob"); }
 const loadImg = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
 async function canvasDoc(draw, imgs, W = 210, H = 297) {
-  try { if (document.fonts) await document.fonts.load('60px "PNA Motto"', "सही"); } catch {} const mi0 = S.data ? mottoImg(ST()) : null; if (mi0) imgs = [...imgs, mi0.src];
+  try { if (document.fonts) await document.fonts.load('60px "PNA Motto"', "सही"); } catch {} const mi0 = S.data ? mottoImg(ST()) : null; if (mi0) imgs = [...imgs, mi0.src]; if (S.data && ST().caLogo) imgs = [...imgs, ST().caLogo];
   const map = new Map(); for (const src of imgs.filter(Boolean)) map.set(src, await loadImg(src));
   let pages = 1; const meas = document.createElement("canvas").getContext("2d");
   const fontStr = (size, bold, f, k) => `${bold ? "bold " : ""}${size * 0.3528 * k}px ${f === "serif" ? '"Times New Roman", Times, Georgia, serif' : "Helvetica, Arial, sans-serif"}`;
@@ -3356,8 +3388,9 @@ function invoiceDOCX(m) {
   const cell = (inner, w, o = {}) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.border ? borders("C9CED8") : o.bottom ? `<w:tcBorders><w:bottom w:val="single" w:sz="4" w:color="C9CED8"/></w:tcBorders>` : ""}${o.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shade}"/>` : ""}<w:tcMar><w:top w:w="70" w:type="dxa"/><w:bottom w:w="70" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar>${o.valign ? `<w:vAlign w:val="${o.valign}"/>` : ""}</w:tcPr>${!inner ? "<w:p/>" : inner.endsWith("</w:tbl>") ? inner + "<w:p/>" : inner}</w:tc>`;
   const table = (rows, widths) => `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.map(rw => `<w:tr>${rw}</w:tr>`).join("")}</w:tbl>`;
   let body = "";
-  body += table([cell(p(r(s.firm, {serif: 1, b: 1, size: 20, color: N})) + p(r((s.tagline || "").toUpperCase(), {b: 1, size: 8.5, color: Gd, sp: 40})) + p(r([s.addr1, s.addr2].filter(Boolean).join("  |  "), {size: 8.5, color: Mu})) + ((s.phone || s.email || s.website) ? p(r([s.phone, s.email, s.website].filter(Boolean).join("  ·  "), {size: 8.5, color: Mu})) : ""), 6806)
-    + cell((m.firmIds.map(f => p(r(f[0] + ": ", {b: 1, size: 8.5, color: N}) + r(f[1], {size: 8.5}), {align: "right"})).join("") + mottoRun(s, p)) || "<w:p/>", 3400)], [6806, 3400]);
+  const lw = s.caLogo ? Math.min(21, 16 * (s.caLogoR || 1.5)) : 0, lt = lw ? Math.round(lw / 25.4 * 1440) + 160 : 0;
+  body += table([(lw ? cell(p(img(s.caLogo, lw, lw / (s.caLogoR || 1.5))), lt) : "") + cell(p(r(s.firm, {serif: 1, b: 1, size: 20, color: N})) + p(r((s.tagline || "").toUpperCase(), {b: 1, size: 8.5, color: Gd, sp: 40})) + p(r([s.addr1, s.addr2].filter(Boolean).join("  |  "), {size: 8.5, color: Mu})) + ((s.phone || s.email || s.website) ? p(r([s.phone, s.email, s.website].filter(Boolean).join("  ·  "), {size: 8.5, color: Mu})) : ""), 6806 - lt)
+    + cell((m.firmIds.map(f => p(r(f[0] + ": ", {b: 1, size: 8.5, color: N}) + r(f[1], {size: 8.5}), {align: "right"})).join("") + mottoRun(s, p)) || "<w:p/>", 3400)], lt ? [lt, 6806 - lt, 3400] : [6806, 3400]);
   body += p("", {bb: 1, after: 120});
   body += p(r(m.title, {b: 1, size: 13, color: N, sp: 60}), {align: "center", after: 40}) + p(r("Original for recipient", {size: 7.5, color: Mu}), {align: "right", after: 80});
   const leftC = p(r("BILLED TO", {b: 1, size: 7.5, color: Gd})) + p(r(m.c.name || "", {b: 1, size: 11})) + (m.clientAddr ? lines(m.clientAddr.split("\n"), {size: 9, color: Mu}) : "")
@@ -3581,7 +3614,7 @@ function render() {
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch {} } }
   bind();
 }
-const brandBlock = () => `<div class="mono">PNA</div><div><div class="firm">${esc(S.data ? ST().firm : "Prarabdh Neema & Associates")}</div><div class="muted small" style="margin-top:2px">Chartered Accountants · Accounts &amp; Billing</div></div>${mottoBlock(S.data ? ST() : {motto: MOTTO_DEFAULT[0], mottoBy: MOTTO_DEFAULT[1], mottoRole: MOTTO_DEFAULT[2]})}`;
+const brandBlock = () => `${S.data && ST().caLogo ? caLogoTile(ST(), "lk-logo") : `<div class="mono">PNA</div>`}<div><div class="firm">${esc(S.data ? ST().firm : "Prarabdh Neema & Associates")}</div><div class="muted small" style="margin-top:2px">Chartered Accountants · Accounts &amp; Billing</div></div>${mottoBlock(S.data ? ST() : {motto: MOTTO_DEFAULT[0], mottoBy: MOTTO_DEFAULT[1], mottoRole: MOTTO_DEFAULT[2]})}`;
 const mottoBlock = s => s && s.motto ? `<div class="mottoblk"><div class="motto-line">${esc(s.motto)}</div>${s.mottoBy ? `<div class="motto-by">— ${esc(s.mottoBy)}${s.mottoRole ? " · " + esc(s.mottoRole) : ""}</div>` : ""}</div>` : "";
 function lockView() {
   const brand = brandBlock();
@@ -3613,7 +3646,7 @@ function shell() {
   const view = {dash: vDash, day: vDay, inv: vInv, clients: vClients, comp: vComp, letters: vLetters, tools: vTools, ledgers: vLedgers, reports: vReports, msgs: vMsgs, settings: vSettings}[S.tab] || vDash;
   const s = ST(), mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent), cities = firmCities(s);
   return `<header class="mh"><div class="mh-in">
-    <div class="mh-brand"><div class="mono">PNA</div><div class="mh-name"><div class="mh-tag">${esc(s.tagline || "Chartered Accountants")}${cities ? `<span> · ${esc(cities)}</span>` : ""}</div><div class="mh-firm">${esc(s.firm)}</div>${s.motto ? `<figure class="mh-motto"><blockquote>${esc(s.motto)}</blockquote>${s.mottoBy ? `<figcaption>— <b>${esc(s.mottoBy)}</b>${s.mottoRole ? `<span>${esc(s.mottoRole)}</span>` : ""}</figcaption>` : ""}</figure>` : ""}</div></div>
+    <div class="mh-brand">${s.caLogo ? caLogoTile(s, "mh-logo") : `<div class="mono">PNA</div>`}<div class="mh-name"><div class="mh-tag">${esc(s.tagline || "Chartered Accountants")}${cities ? `<span> · ${esc(cities)}</span>` : ""}</div><div class="mh-firm">${esc(s.firm)}</div>${s.motto ? `<figure class="mh-motto"><blockquote>${esc(s.motto)}</blockquote>${s.mottoBy ? `<figcaption>— <b>${esc(s.mottoBy)}</b>${s.mottoRole ? `<span>${esc(s.mottoRole)}</span>` : ""}</figcaption>` : ""}</figure>` : ""}</div></div>
     <div class="mh-act"><div class="mh-row"><button class="mh-search" data-act="palette" title="Search (⌘K / Ctrl+K)">${ic("search")}<span>Search</span><kbd>${mac ? "⌘" : "Ctrl+"}K</kbd></button>
       <select id="fy-sel" class="fy" aria-label="Financial year">${fys.map(y => `<option value="${y}" ${y === S.fy ? "selected" : ""}>FY ${fyLabel(y)}</option>`).join("")}</select>
       <button class="mh-ib ${S.priv ? "on" : ""}" data-act="privacy" aria-pressed="${!!S.priv}" title="${S.priv ? "Show figures" : "Client in the office? Hide figures and client names"}">${ic(S.priv ? "eyeoff" : "eye")}<span>${S.priv ? "Privacy on" : "Privacy"}</span></button>
@@ -3727,7 +3760,7 @@ function clientCard(id) {
   const c = led(id); const s = clientDues().get(id) || {bal: 0, age: [0, 0, 0, 0], debits: []};
   const invs = vouchers().filter(v => v.type === "sales" && v.f.party === id).slice(-6).reverse();
   openModal(`<div class="modal-head"><div><div class="small muted">${esc(G(c.group).name)}</div><h2>${esc(c.name)}</h2></div><button class="x" data-close aria-label="Close">×</button></div>
-    <div class="grid cols-2" style="gap:12px"><dl class="kv">${[["Contact", c.contact], ["Phone", c.phone], ["WhatsApp", c.whatsapp], ["Email", c.email], ["GSTIN", c.gstin], ["PAN", c.pan], ["Address", [c.address, c.city, stateName(c.stateCode)].filter(Boolean).join(", ")]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("") || `<dt>Details</dt><dd class="muted">None added yet</dd>`}</dl>
+    <div class="grid cols-2" style="gap:12px"><dl class="kv">${[["Contact", contactName(c)], ["Phone", c.phone], ["WhatsApp", c.whatsapp], ["Email", c.email], ["GSTIN", c.gstin], ["PAN", c.pan], ["Address", [c.address, c.city, stateName(c.stateCode)].filter(Boolean).join(", ")]].filter(r => r[1]).map(r => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("") || `<dt>Details</dt><dd class="muted">None added yet</dd>`}</dl>
       <div><div class="stat"><div class="label">${s.bal < 0 ? "Advance received" : "Due now"}</div><div class="value ${s.bal > 0 ? "amt-out" : ""}">${money(Math.abs(s.bal))}</div></div>
       <div class="filters" style="margin-top:8px">${["0–30", "31–60", "61–90", "90+"].map((t, i) => s.age[i] ? `<span class="pill ${i === 3 ? "out" : i === 2 ? "warn" : ""}">${t} days: ${money(s.age[i])}</span>` : "").join("")}</div></div></div>
     ${invs.length ? `<h3 style="margin:16px 0 6px">Recent invoices</h3><div class="tablewrap"><table><tbody>${invs.map(v => { const st = invStatus(v); return `<tr class="click" data-cinv="${v.id}"><td class="num">${dmy(v.date)}</td><td class="num">${esc(v.no)}</td><td class="r num">${money(calcInvoice(v.f).grand)}</td><td><span class="pill ${st.cls}">${st.label}</span></td></tr>`; }).join("")}</tbody></table></div>` : ""}
@@ -3879,11 +3912,13 @@ function vSettings() {
     <div class="panel"><div class="panel-head"><h2>Invoice &amp; report authentication</h2></div>
       <div class="authgrid"><div class="authprev">${s.sealOn !== false ? `<img src="${sealPNG()}" alt="Firm seal" width="96" height="96">` : `<div class="noimg">Seal off</div>`}<span class="small muted">Firm seal</span></div>
         <div class="authprev">${s.signImg ? `<img src="${s.signImg}" alt="Signature" style="width:150px;height:auto;max-height:64px;object-fit:contain;background:#fff;border-radius:6px">` : `<div class="noimg" style="width:150px">No signature</div>`}<span class="small muted">Signature</span></div>
+        <div class="authprev">${s.caLogo ? `<span class="calogo set">${`<img src="${s.caLogo}" alt="CA India logo">`}</span>` : `<div class="noimg" style="width:110px">No CA logo</div>`}<span class="small muted">CA logo</span></div>
         <div class="authprev">${s.qrOn !== false ? `<img src="${qrPNG(s.firm + "\nSample verification")}" alt="QR code" width="80" height="80">` : `<div class="noimg">QR off</div>`}<span class="small muted">Verification QR</span></div></div>
       <div class="stack" style="gap:8px;margin-top:12px">
         <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="au-seal" style="width:auto" ${s.sealOn !== false ? "checked" : ""}> Print the firm's round seal next to the signature</label>
         <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="au-qr" style="width:auto" ${s.qrOn !== false ? "checked" : ""}> Print a QR code and unique verification code on every invoice and report</label>
         <div class="actions"><button class="btn sm" type="button" id="au-sign">${s.signImg ? "Replace signature" : "Upload signature"}</button>${s.signImg ? `<button class="btn sm danger" type="button" id="au-sign-x">Remove signature</button>` : ""}<span class="small muted">PNG or JPG of your signature on white paper — the background is removed automatically.</span></div>
+        <div class="actions"><button class="btn sm" type="button" id="au-logo">${s.caLogo ? "Replace CA logo" : "Upload official CA logo"}</button>${s.caLogo ? `<button class="btn sm danger" type="button" id="au-logo-x">Remove CA logo</button>` : ""}<span class="small muted">Use the official “CA India” logo file from ICAI (PNG, JPG or SVG). It is placed on a white background in its original proportions — on the letterhead (invoices, receipts, statements, letters), the app header and the client portal.</span></div>
         <p class="small muted" style="margin:0">Each invoice carries a verification code made from its number, date, client and amount; the QR code shows these details so anyone can check the invoice is genuine. This is not a DSC digital signature.</p></div></div>
     <div class="panel"><div class="panel-head"><h2>Google Drive</h2>${ONLINE ? `<button class="btn sm" data-act="drvcheck">Check connection</button>` : ""}</div>
       ${ONLINE ? `<dl class="kv"><dt>Drive account</dt><dd><b>${esc(s.driveAccount || "Not checked yet")}</b></dd><dt>Client files folder</dt><dd>${s.driveRootUrl ? `<a href="${esc(s.driveRootUrl)}" target="_blank" rel="noopener">${esc(s.driveRootTitle || "Open folder")} ↗</a>${s.driveRootOwner && s.driveRootOwner !== s.driveAccount ? ` <span class="small muted">(owned by ${esc(s.driveRootOwner)})</span>` : ""}` : `<span class="muted">Created on first use</span>`}</dd>
@@ -3901,7 +3936,7 @@ function vSettings() {
       <p class="small muted" style="margin-top:0">Entries made in either place are combined record by record; the newest change wins and nothing is duplicated.</p>
       <div class="actions"><button class="btn" data-act="syncout">${ONLINE ? "Download file for MacBook" : "Save file for online"}</button><button class="btn" data-act="syncin">${ONLINE ? "Merge file from MacBook" : "Merge file from online"}</button>${!ONLINE ? `<a class="btn" href="${VIEWER_URL}" target="_blank" rel="noopener">Open online ledger ↗</a>` : ""}</div></div>
     ${safetyPanel()}
-    <div class="panel"><div class="panel-head"><h2>Quotes on dashboard &amp; client portal</h2></div><p class="small muted" style="margin-top:0">A different money quote shows each day. Add your firm's own lines here — one per line, optionally “Quote — Author”. Built-in quotes from Franklin, Buffett, Kautilya and others are always included.</p>
+    <div class="panel"><div class="panel-head"><h2>Daily corner on dashboard &amp; client portal</h2></div><p class="small muted" style="margin-top:0">Each day shows something new — a relatable thought (Kabir, Tulsidas, proverbs, money wisdom), a “Did you know?” fact about tax and accounting, or a light smile. Add your firm's own lines here — one per line, optionally “Quote — Author”. Built-in quotes from Franklin, Buffett, Kautilya and others are always included.</p>
       <textarea id="q-own" rows="4" placeholder="Plan taxes in April, not in March — ${esc(ST().firm)}">${esc(ST().quotes || "")}</textarea><div class="actions" style="margin-top:8px"><button class="btn sm" data-act="savequotes">Save quotes</button></div></div>
     <div class="panel"><div class="panel-head"><h2>Backup</h2></div><p class="small" style="margin-top:0">${esc(S.saveState || "")}</p>
       ${fsOK ? `<p class="small muted">${S.fileHandle ? "Also saving every change to <b>" + esc(S.fileName) + "</b>." : "Choose a file in your PNA Ledger folder and every change is saved there too."}</p><div class="actions" style="margin-bottom:10px"><button class="btn" data-act="linkfile">${S.fileHandle ? "Change data file" : "Save changes to a file"}</button></div>` : ""}
@@ -3928,6 +3963,8 @@ function bind() {
   if (S.tab === "comp" && $("main")) bindCompRows($("main")); if (S.tab === "dash") bindEngage($("main")); if (S.tab === "letters") bindLetters(); if (S.tab === "tools") bindTools(); if (S.tab === "settings") bindSafety(); on("pw-form", "submit", changePassword);
   on("dv-auto", "change", e => { ST().driveAuto = e.target.checked; ST().updatedAt = nowIso(); commit(); }); on("dv-subs", "change", e => { ST().driveSubsOn = e.target.checked; ST().updatedAt = nowIso(); commit(); });
   on("au-seal", "change", e => { ST().sealOn = e.target.checked; ST().updatedAt = nowIso(); commit(); }); on("au-qr", "change", e => { ST().qrOn = e.target.checked; ST().updatedAt = nowIso(); commit(); });
+  on("au-logo-x", "click", () => { ST().caLogo = ""; ST().caLogoR = 0; ST().updatedAt = nowIso(); commit(); toast("CA logo removed"); });
+  on("au-logo", "click", () => { const i = document.createElement("input"); i.type = "file"; i.accept = "image/png,image/jpeg,image/svg+xml,image/webp"; i.onchange = async () => { const f = i.files[0]; if (!f) return; try { const L = await prepLogo(f); ST().caLogo = L.src; ST().caLogoR = L.r; ST().updatedAt = nowIso(); commit(); toast("CA logo saved — it now shows on the letterhead, app header and client portal"); } catch { toast("Couldn't read that image. Try the PNG file."); } }; i.click(); });
   on("au-sign-x", "click", () => { ST().signImg = ""; ST().updatedAt = nowIso(); commit(); toast("Signature removed"); });
   on("au-sign", "click", () => { const i = document.createElement("input"); i.type = "file"; i.accept = "image/png,image/jpeg"; i.onchange = async () => { const f = i.files[0]; if (!f) return; try { ST().signImg = await cleanSignature(f); ST().updatedAt = nowIso(); commit(); toast("Signature saved — it now prints on invoices and statements"); } catch { toast("Couldn't read that image."); } }; i.click(); });
   on("tpl-form", "submit", e => { e.preventDefault(); const t = ST().tpl; ["invoice", "reminder", "receipt", "portal", "comp"].forEach(k => t[k] = $("#tpl-" + k).value); ST().updatedAt = nowIso(); commit(); toast("Templates saved"); });
@@ -4273,7 +4310,7 @@ function printInvoice(m) { let pr = $("#print-root"); if (!pr) { pr = document.c
 // ----- compose: WhatsApp / email / SMS
 function msgVars(ctx) { return Object.assign(msgVars0(ctx), ctx.vars || {}); }
 function msgVars0(ctx) { const s = ST(), c = led(ctx.client) || {}, cd = clientDues().get(ctx.client) || {bal: 0, debits: []}; const v = ctx.v;
-  const vars = {client: c.contact || c.name, firm: s.firm, signatory: s.signatory, today: dLong(todayStr()), due: money(Math.max(0, cd.bal)), bank: bankText() || "(add bank details in Settings)",
+  const vars = {client: contactName(c) || c.name, firm: s.firm, signatory: s.signatory, today: dLong(todayStr()), due: money(Math.max(0, cd.bal)), bank: bankText() || "(add bank details in Settings)",
     details: cd.debits.filter(d => d.due > 0).map(d => `• ${d.kind === "invoice" ? "Invoice " + d.v.no : d.kind === "opening" ? "Previous balance" : "Amount paid on your behalf"} dated ${dmy(d.date)}: ${money(d.due)}`).join("\n")};
   if (v && v.type === "sales") { const iv = calcInvoice(v.f); Object.assign(vars, {invoice_no: v.no, invoice_date: dLong(v.date), amount: money(iv.grand), service: (v.f.items || []).map(x => x.desc).join(", "), due_date: v.f.dueDate ? dLong(v.f.dueDate) : "the due date"}); }
   if (c.portal && c.portal.on) Object.assign(vars, {link: portalLink(c), password: c.portal.pw});
@@ -4342,7 +4379,7 @@ function ledgerForm(l, preset) {
       <div class="field"><label class="lbl" for="l-open">Opening balance on ${dmy(B())}</label><div class="row2"><input id="l-open" type="number" step="0.01" value="${ob ? Math.abs(ob) : ""}" placeholder="0.00"><select id="l-dc"><option ${ob >= 0 ? "selected" : ""}>Dr</option><option ${ob < 0 ? "selected" : ""}>Cr</option></select></div></div>
       <div class="span2 party-fields formgrid" id="l-party">
         <div class="field"><label class="lbl" for="l-ent">Entity type</label><select id="l-ent"><option value="">—</option>${ENTITY.map(([k, n]) => opt(k, n, p.entity === k)).join("")}</select></div>
-        <div class="field"><label class="lbl" for="l-contact">Contact person</label><input id="l-contact" value="${esc(p.contact || "")}"></div>
+        <div class="field"><label class="lbl" for="l-contact">Contact person</label><div class="row2 salrow"><select id="l-sal" aria-label="Salutation"><option value="">—</option>${SALUTES.map(x => `<option ${p.sal === x ? "selected" : ""}>${x}</option>`).join("")}</select><input id="l-contact" value="${esc(p.contact || "")}" placeholder="Full name"></div><span class="hint">Salutation shows on the client portal, letters and messages.</span></div>
         <div class="field"><label class="lbl" for="l-phone">Phone</label><input id="l-phone" inputmode="tel" value="${esc(p.phone || "")}"></div>
         <div class="field"><label class="lbl" for="l-wa">WhatsApp (if different)</label><input id="l-wa" inputmode="tel" value="${esc(p.whatsapp || "")}"></div>
         <div class="field"><label class="lbl" for="l-email">Email</label><input id="l-email" type="email" value="${esc(p.email || "")}"></div>
@@ -4368,7 +4405,7 @@ function ledgerForm(l, preset) {
     const pan = g("l-pan").trim().toUpperCase(); if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) return err.textContent = "PAN should look like ABCDE1234F.";
     const tan = g("l-tan").trim().toUpperCase(); if (tan && !/^[A-Z]{4}[0-9]{5}[A-Z]$/.test(tan)) return err.textContent = "TAN should look like BPLA12345B."; const upl = g("l-upl").trim(); if (upl && !/^https:\/\//.test(upl)) return err.textContent = "The upload folder link should start with https://";
     const grp = l && l.sys ? l.group : g("l-group"); const rec = Object.assign(l ? {...l} : {id: uid(), createdAt: nowIso()}, {name, group: grp, opening: r2(g("l-open")) * (g("l-dc") === "Cr" ? -1 : 1), notes: g("l-notes").trim()});
-    if (G(grp).party) Object.assign(rec, {contact: g("l-contact").trim(), phone: g("l-phone").trim(), whatsapp: g("l-wa").trim(), email: g("l-email").trim(), gstin: gst, pan, address: g("l-addr").trim(), city: g("l-city").trim(), stateCode: g("l-state"), folder: g("l-folder").trim(), entity: g("l-ent"), tan, upload: upl}); if (G(grp).party && l && (l.upload || "") !== upl) setTimeout(() => { schedulePortals(); scheduleSite(); }, 0);
+    if (G(grp).party) Object.assign(rec, {sal: g("l-sal"), contact: g("l-contact").trim(), phone: g("l-phone").trim(), whatsapp: g("l-wa").trim(), email: g("l-email").trim(), gstin: gst, pan, address: g("l-addr").trim(), city: g("l-city").trim(), stateCode: g("l-state"), folder: g("l-folder").trim(), entity: g("l-ent"), tan, upload: upl}); if (G(grp).party && l && (l.upload || "") !== upl) setTimeout(() => { schedulePortals(); scheduleSite(); }, 0);
     if (l && $("#l-act")) rec.active = $("#l-act").value === "1";
     upsert("ledgers", rec); if (!l) S.sel = rec.id; commit(); closeModal(); toast((isClient(rec) ? "Client" : "Account") + " saved: " + name); if (!l) autoDriveFor([rec.id]); });
   const del = $("#l-del"); if (del) del.addEventListener("click", () => { if (!del.dataset.c) { del.dataset.c = 1; del.textContent = "Confirm delete"; return; } removeRec("ledgers", l.id); S.sel = null; commit(); closeModal(); toast("Deleted"); });
@@ -5050,7 +5087,7 @@ function nextLetterRef(date) { const fy = fyOf(date || todayStr()); const n = D(
 function ltVars(st) { const s = ST(), c = led(st.client) || {}, def = ltDef(st.tpl) || {f: []}; const f = st.f || {};
   const fy = f.fy || prevFY(); const fy0 = +fy.slice(0, 4); const addr = [c.address, [c.city, c.stateCode ? stateName(c.stateCode) : ""].filter(Boolean).join(", ")].filter(Boolean).join(", ");
   const cd = clientDues().get(st.client) || {bal: 0, debits: []};
-  const v = {client: c.name || "________", contact: c.contact ? c.contact : "Sir/Madam", client_pan: c.pan || "__________", client_gstin: c.gstin || "__________", gstin_text: c.gstin ? ", GSTIN " + c.gstin : "",
+  const v = {client: c.name || "________", contact: c.contact ? contactName(c) : "Sir/Madam", client_pan: c.pan || "__________", client_gstin: c.gstin || "__________", gstin_text: c.gstin ? ", GSTIN " + c.gstin : "",
     client_addr_line: addr || "________", fy, fy_start: String(fy0), fy_end: String(fy0 + 1), ay: f.ay || fyLabel(fy0 + 1), date: dLong(st.date || todayStr()),
     firm: s.firm, signatory: s.signatory, designation: s.designation, memno: s.memNo || "______", frn: s.frn || "__________", firm_email: s.email || "________", firm_phone: s.phone || "________",
     firm_addr: [s.addr1, s.addr2].filter(Boolean).join(", "), place: ((s.addr1 || "").split(",")[0] || "").trim(), bank: bankText() || "(bank details)", due: money(Math.max(0, cd.bal)),
@@ -5067,7 +5104,7 @@ function ltAddressee(st) { const def = ltDef(st.tpl); const c = led(st.client) |
   if (!def) return ""; if (def.to === "twimc") return ""; if (def.to === "firm") return [s.firm, "Chartered Accountants", s.addr1, s.addr2].filter(Boolean).join("\n");
   if (def.to === "board") return ["The Board of Directors", c.name || "", ...caddr].filter(Boolean).join("\n");
   if (def.to.startsWith("field:")) return (st.f || {})[def.to.slice(6)] || "";
-  return [c.name || "", c.contact && c.contact !== c.name ? "Kind attention: " + c.contact : "", ...caddr].filter(Boolean).join("\n"); }
+  return [c.name || "", c.contact && c.contact !== c.name ? "Kind attention: " + contactName(c) : "", ...caddr].filter(Boolean).join("\n"); }
 function letterModel(st) { const def = ltDef(st.tpl) || LT[LT.length - 1]; const c = led(st.client) || {}; const s = ST(); const vars = ltVars(st);
   const subject = st.sub != null ? st.sub : fillTpl(def.sub, vars); const body = st.body != null ? st.body : fillTpl(def.body, vars);
   const to = (st.to != null ? st.to : ltAddressee(st)).split("\n").map(x => x.trim()).filter(Boolean);
@@ -5141,8 +5178,9 @@ function letterDOCX(m) { const s = ST(), N = "1F3864", Gd = "9A7B1E", Mu = "555B
   const cell = (inner, w, o = {}) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.border ? bord("C9CED8") : ""}${o.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shade}"/>` : ""}<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar></w:tcPr>${inner || "<w:p/>"}</w:tc>`;
   const table = (rows, widths) => `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.map(rw => `<w:tr>${rw}</w:tr>`).join("")}</w:tbl><w:p/>`;
   const TW = 9638; let body = "";
-  if (m.head === "firm") { body += table([cell(p(r(s.firm, {serif: 1, b: 1, size: 20, color: N})) + p(r((s.tagline || "").toUpperCase(), {b: 1, size: 8.5, color: Gd, sp: 40})) + p(r([s.addr1, s.addr2].filter(Boolean).join("  |  "), {size: 8.5, color: Mu})) + ((s.phone || s.email || s.website) ? p(r([s.phone, s.email, s.website].filter(Boolean).join("  ·  "), {size: 8.5, color: Mu})) : ""), 6438)
-      + cell((firmIds().map(f => p(r(f[0] + ": ", {b: 1, size: 8.5, color: N}) + r(f[1], {size: 8.5}), {align: "right"})).join("") + mottoRun(s, p)) || "<w:p/>", 3200)], [6438, 3200]).replace(/<w:p\/>$/, ""); body += p("", {bb: 1, after: 200}); }
+  const lw = s.caLogo ? Math.min(21, 16 * (s.caLogoR || 1.5)) : 0, lt = lw ? Math.round(lw / 25.4 * 1440) + 160 : 0;
+  if (m.head === "firm") { body += table([(lw ? cell(p(img(s.caLogo, lw, lw / (s.caLogoR || 1.5))), lt) : "") + cell(p(r(s.firm, {serif: 1, b: 1, size: 20, color: N})) + p(r((s.tagline || "").toUpperCase(), {b: 1, size: 8.5, color: Gd, sp: 40})) + p(r([s.addr1, s.addr2].filter(Boolean).join("  |  "), {size: 8.5, color: Mu})) + ((s.phone || s.email || s.website) ? p(r([s.phone, s.email, s.website].filter(Boolean).join("  ·  "), {size: 8.5, color: Mu})) : ""), 6438 - lt)
+      + cell((firmIds().map(f => p(r(f[0] + ": ", {b: 1, size: 8.5, color: N}) + r(f[1], {size: 8.5}), {align: "right"})).join("") + mottoRun(s, p)) || "<w:p/>", 3200)], lt ? [lt, 6438 - lt, 3200] : [6438, 3200]).replace(/<w:p\/>$/, ""); body += p("", {bb: 1, after: 200}); }
   else body += p(r("[ To be printed on the letterhead of " + m.clientName + " ]", {i: 1, size: 9, color: Mu}), {align: "center", after: 300});
   body += p(r(m.ref ? "Ref: " + m.ref : "") + "<w:r><w:tab/></w:r>" + r("Date: " + dLong(m.date)), {tab: TW, after: 240});
   if (m.title) body += p(r(m.title.toUpperCase(), {b: 1, size: 12.5, color: N, sp: 40}), {align: "center", after: 160});
@@ -5413,38 +5451,60 @@ function bulkRemind() { const list = [...clientDues().values()].filter(s => s.ba
 
 // ================= Engagement: updates feed, money quotes, interactive compliance calendar (dashboard + client portal) =================
 const NOTE_CATS = ["GST", "Income tax", "TDS", "MCA / ROC", "RBI & banking", "FEMA", "Firm news", "Tip"];
+// Daily corner: relatable quotes, "did you know" facts and a light smile — mixed so each day feels different.
+// kind: q = quote, f = fact, s = smile. Facts are well-established; avoid section numbers (the Income-tax Act 2025 renumbered them).
 const QUOTES = [
-  ["Beware of little expenses; a small leak will sink a great ship.", "Benjamin Franklin"],
-  ["If you would be wealthy, think of saving as well as getting.", "Benjamin Franklin"],
-  ["In this world nothing can be said to be certain, except death and taxes.", "Benjamin Franklin"],
-  ["Do not save what is left after spending; spend what is left after saving.", "Warren Buffett"],
-  ["Price is what you pay. Value is what you get.", "Warren Buffett"],
-  ["Accounting is the language of business.", "Warren Buffett"],
-  ["Rule No. 1: never lose money. Rule No. 2: never forget Rule No. 1.", "Warren Buffett"],
-  ["Someone is sitting in the shade today because someone planted a tree a long time ago.", "Warren Buffett"],
-  ["The stock market is a device for transferring money from the impatient to the patient.", "Warren Buffett"],
-  ["All undertakings depend upon finance. Hence foremost attention shall be paid to the treasury.", "Kautilya, Arthashastra"],
-  ["Wealth consists not in having great possessions, but in having few wants.", "Epictetus"],
-  ["Taxes are what we pay for civilized society.", "Oliver Wendell Holmes Jr."],
-  ["Money is a terrible master but an excellent servant.", "P. T. Barnum"],
-  ["Know what you own, and know why you own it.", "Peter Lynch"],
-  ["The four most dangerous words in investing are: this time it's different.", "Sir John Templeton"],
-  ["Profit is not the purpose of a business but the test of its validity.", "Peter Drucker"],
-  ["It's not how much money you make, but how much money you keep.", "Robert Kiyosaki"],
-  ["Revenue is vanity, profit is sanity, but cash is king.", "Business proverb"],
-  ["Good books today, a peaceful audit tomorrow.", "@firm"],
-  ["Every deadline met is a penalty saved.", "@firm"],
-  ["File early, sleep well.", "@firm"],
-  ["Keep your receipts the way you keep your promises.", "@firm"],
-  ["Cash flow is the oxygen of a business — check it every month.", "@firm"],
-  ["The cheapest tax saving is planning in April, not panicking in March.", "@firm"],
+  ["काल करे सो आज कर, आज करे सो अब। पल में परलय होएगी, बहुरि करेगा कब॥", "Sant Kabir", "q", "Do tomorrow's work today and today's work now — the perfect rule for due dates."],
+  ["का बरषा जब कृषी सुखानें। समय चुकें पुनि का पछितानें॥", "Goswami Tulsidas, Ramcharitmanas", "q", "What use is rain once the crop has dried? Filing after the due date feels exactly like that."],
+  ["बूँद-बूँद से घड़ा भरता है।", "Hindi proverb", "q", "Drop by drop the pot fills — small monthly savings and SIPs add up."],
+  ["जितनी चादर हो, उतने ही पैर पसारो।", "Hindi proverb", "q", "Stretch your legs only as far as the sheet goes — the oldest budgeting advice there is."],
+  ["साईं इतना दीजिए, जा में कुटुम समाय। मैं भी भूखा न रहूँ, साधु न भूखा जाय॥", "Sant Kabir", "q", "Ask for enough for your family, yourself and a guest — wealth with contentment."],
+  ["All undertakings depend upon finance. Hence foremost attention shall be paid to the treasury.", "Kautilya, Arthashastra", "q"],
+  ["Beware of little expenses; a small leak will sink a great ship.", "Benjamin Franklin", "q"],
+  ["In this world nothing can be said to be certain, except death and taxes.", "Benjamin Franklin (1789)", "q"],
+  ["Accounting is the language of business.", "Warren Buffett", "q"],
+  ["Price is what you pay. Value is what you get.", "Warren Buffett", "q"],
+  ["Do not save what is left after spending; spend what is left after saving.", "Warren Buffett", "q"],
+  ["Revenue is vanity, profit is sanity, but cash is king.", "Business proverb", "q"],
+  ["Good books today, a peaceful audit tomorrow.", "@firm", "q"],
+  ["Every deadline met is a penalty saved.", "@firm", "q"],
+  ["The cheapest tax saving is planning in April, not panicking in March.", "@firm", "q"],
+  ["Keep your receipts the way you keep your promises.", "@firm", "q"],
+  ["‘Credit’ comes from the Latin credere — to trust. Accounting has been about trust from day one.", "", "f"],
+  ["‘Audit’ comes from the Latin audire — to hear. Early accounts were read out aloud and ‘heard’ by the auditor.", "", "f"],
+  ["The 4th letter of your PAN tells who you are to the tax department: P = individual, C = company, H = HUF, F = firm / LLP. Check yours!", "", "f"],
+  ["Your GSTIN hides your PAN: the first 2 digits are the state code, the next 10 characters are your PAN, and the last one is a check character.", "", "f"],
+  ["Income tax came to India in 1860, introduced by James Wilson — that is why 24 July is celebrated as Income Tax Day.", "", "f"],
+  ["ICAI was set up on 1 July 1949 — which is why 1 July is celebrated as CA Day.", "", "f"],
+  ["GST was launched at a special midnight session in Parliament's Central Hall, on the night of 30 June 2017.", "", "f"],
+  ["Double-entry bookkeeping was first published in 1494 by Luca Pacioli — a friend of Leonardo da Vinci, who illustrated another of his books.", "", "f"],
+  ["‘Budget’ comes from the old French bougette — a small leather bag in which the finance minister carried his papers.", "", "f"],
+  ["India's first Union Budget after independence was presented on 26 November 1947 by R. K. Shanmukham Chetty.", "", "f"],
+  ["Before the Union Budget, a ‘halwa ceremony’ is held in North Block — and the officials involved stay inside until the Budget is presented.", "", "f"],
+  ["Russia's Peter the Great once taxed beards. Those who paid carried a ‘beard token’ as their receipt.", "", "f"],
+  ["England's window tax (1696) made people brick up their windows — you can still spot bricked-up windows on old buildings.", "", "f"],
+  ["Al Capone was finally jailed in 1931 not for his gang crimes but for income-tax evasion.", "", "f"],
+  ["Indian notes carry the RBI Governor's promise to pay the bearer — except the ₹1 note, which is issued by the Government and signed by the Finance Secretary.", "", "f"],
+  ["Cash rule worth remembering: receiving ₹2 lakh or more in cash from one person in a day is not allowed under income-tax law — the penalty can equal the amount received.", "", "f"],
+  ["Your CA can do many things. Travelling back to before the due date is not one of them.", "@firm", "s"],
+  ["A bill in the file is worth two in the WhatsApp chat.", "@firm", "s"],
+  ["Mixing personal and business money is like mixing tea and coffee — nobody enjoys the result.", "@firm", "s"],
+  ["Behind every calm 31st July is a client who sent documents on the 1st.", "@firm", "s"],
+  ["March is not a month, it's a mood. Let's keep it a calm one this year.", "@firm", "s"],
+  ["Reconcile every month — surprises belong at birthdays, not in your books.", "@firm", "s"],
+  ["Every notice has a reply date. Even the polite-looking ones.", "@firm", "s"],
+  ["Cash may be king, but in GST the tax invoice is the emperor.", "@firm", "s"],
 ];
-const allQuotes = () => { const s = ST(); const own = String(s.quotes || "").split("\n").map(x => x.trim()).filter(Boolean).map(x => { const m = x.split(/\s+[—–-]\s+(?=[^—–-]+$)/); return m.length > 1 ? [m[0], m[1]] : [x, "@firm"]; }); return [...own, ...QUOTES]; };
+const QKIND = {q: "Thought", f: "Did you know?", s: "Smile"};
+// interleave the three kinds so consecutive days differ
+const mixKinds = arr => { const by = {q: [], f: [], s: []}; arr.forEach(x => (by[x[2] || "q"] || by.q).push(x)); const out = []; for (let i = 0; out.length < arr.length; i++) for (const k of ["q", "f", "s"]) if (by[k][i]) out.push(by[k][i]); return out; };
+const allQuotes = () => { const s = ST(); const own = String(s.quotes || "").split("\n").map(x => x.trim()).filter(Boolean).map(x => { const m = x.split(/\s+[—–-]\s+(?=[^—–-]+$)/); return m.length > 1 ? [m[0], m[1], "q"] : [x, "@firm", "q"]; }); return [...own, ...mixKinds(QUOTES)]; };
 const quoteWho = w => w === "@firm" ? ST().firm : w;
 const dayIndex = () => Math.floor(new Date(todayStr() + "T00:00:00").getTime() / 86400000);
 const greet = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
-function quoteHTML(i, id) { const tq = typeof todayQuote === "function" ? todayQuote() : null; const q = tq ? [[tq.text, tq.by, tq.source], ...allQuotes()] : allQuotes(); const base = tq ? i - dayIndex() : i; const k = ((base % q.length) + q.length) % q.length; const [t, w, src] = q[k];
-  return `<figure class="quote" id="${id}"><blockquote>“${esc(t)}”</blockquote><figcaption>— ${esc(quoteWho(w))}${src ? ` <a href="${esc(src)}" target="_blank" rel="noopener" class="small">source ↗</a>` : ""}</figcaption><div class="qnav"><button type="button" class="x" data-qnav="-1" aria-label="Previous quote">‹</button><button type="button" class="x" data-qnav="1" aria-label="Next quote">›</button></div></figure>`; }
+function quoteHTML(i, id) { const tq = typeof todayQuote === "function" ? todayQuote() : null; const mix = allQuotes(), k0 = ((dayIndex() % mix.length) + mix.length) % mix.length, q = [...mix.slice(k0), ...mix.slice(0, k0)]; if (tq) q.splice(1, 0, [tq.text, tq.by, "q", "", tq.source]); const base = i - dayIndex(); const k = ((base % q.length) + q.length) % q.length; const [t, w, kind0, gloss, src] = q[k]; const kind = kind0 || "q"; const T = typeof tr === "function" ? tr : x => x;
+  const L = S.portalMode ? T : x => x, hi = /[\u0900-\u097F]/.test(t), who = kind !== "f" && w ? quoteWho(w) : "";
+  return `<figure class="quote k-${kind}" id="${id}"><div class="q-k">${esc(L(QKIND[kind]))}</div><blockquote class="${hi ? "hi" : ""}">${kind === "q" && !hi ? "“" + esc(t) + "”" : esc(t)}</blockquote>${gloss ? `<p class="q-gloss">${esc(gloss)}</p>` : ""}${who || src ? `<figcaption>${who ? "— " + esc(who) : ""}${src ? ` <a href="${esc(src)}" target="_blank" rel="noopener" class="small">source ↗</a>` : ""}</figcaption>` : ""}<div class="qnav"><button type="button" class="x" data-qnav="-1" aria-label="Previous">‹</button><button type="button" class="x" data-qnav="1" aria-label="Next">›</button></div></figure>`; }
 let qOff = 0; function qnav(b) { qOff += +b.dataset.qnav; const f = b.closest(".quote"); if (f) f.outerHTML = quoteHTML(dayIndex() + qOff, f.id); }
 function bindQuote(root) { root.addEventListener("click", e => { const b = e.target.closest("[data-qnav]"); if (!b) return; e.stopPropagation(); qnav(b); }); }
 
@@ -5680,7 +5740,7 @@ function clientDocs(id) {
 }
 
 // ----- portal: what a client sees
-const FIRM_KEYS = ["motto", "mottoBy", "mottoRole", "incFees", "rateOv", "quotes", "feedHidden", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
+const FIRM_KEYS = ["caLogo", "caLogoR", "motto", "mottoBy", "mottoRole", "incFees", "rateOv", "quotes", "feedHidden", "firm", "tagline", "addr1", "addr2", "phone", "email", "website", "gstin", "pan", "frn", "stateCode", "signatory", "designation", "memNo", "bankAcName", "bankName", "bankAcc", "bankIfsc", "bankBranch", "upi", "invTerms", "booksStart", "roundOff"];
 function stLabel(v, x) { const f = v.f || {};
   if (v.type === "sales") return "Invoice " + v.no; if (v.type === "receipt") return "Payment received" + (f.mode ? " · " + f.mode : "") + (+f.tds ? " (incl. TDS " + money(f.tds) + ")" : "");
   if (v.type === "payment") return x.dr ? "Paid on your behalf" + (v.narration ? " · " + v.narration : "") : "Refund paid";
@@ -5805,7 +5865,7 @@ const FAVICON = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://w
 function siteIndex() {
   const s = ST(); const code = SELF_SRC.replace(/const MODE = "[a-z]+"/, 'const MODE = "portalweb"').replace(/<\/script/gi, "<\\/script");
   const qr = libSrc(t => t.includes("var qrcode") && !t.includes("const MODE")).replace(/<\/script/gi, "<\\/script");
-  const meta = JSON.stringify({firm: s.firm, motto: s.motto || "", mottoBy: s.mottoBy || "", mottoRole: s.mottoRole || "", tagline: s.tagline || "", phone: s.phone || "", email: s.email || "", website: s.website || ""}).replace(/</g, "\\u003c");
+  const meta = JSON.stringify({firm: s.firm, caLogo: s.caLogo || "", caLogoR: s.caLogoR || 0, motto: s.motto || "", mottoBy: s.mottoBy || "", mottoRole: s.mottoRole || "", tagline: s.tagline || "", phone: s.phone || "", email: s.email || "", website: s.website || ""}).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#1F3864"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -6464,7 +6524,7 @@ async function gstr1Export(btn) { const y = S.fy; const pv = S.g1.p; const q = /
     logEvent("GSTR-1 Excel exported for " + per); } catch (e) { console.warn(e); toast(e.message === "lib" ? "Excel export needs the internet the first time." : "Couldn't create the Excel file."); } btn.disabled = false; }
 
 // ================= Client portal — premium app-style interface (lock screen, home, bills, compliance, documents, calculators, ask, pay) =================
-Object.assign(HI, {"Home": "होम", "Bills": "बिल", "More": "अधिक", "See all": "सभी देखें", "Recent invoices": "हाल के बिल", "Updates": "अपडेट", "Thought for the day": "आज का विचार", "All settled": "कोई बकाया नहीं",
+Object.assign(HI, {"Home": "होम", "Bills": "बिल", "More": "अधिक", "See all": "सभी देखें", "Recent invoices": "हाल के बिल", "Updates": "अपडेट", "Thought for the day": "आज का विचार", "For you today": "आज आपके लिए", "Thought": "विचार", "Did you know?": "क्या आप जानते हैं?", "Smile": "मुस्कुराइए", "All settled": "कोई बकाया नहीं",
   "Pay": "भुगतान", "Upload": "अपलोड", "Due": "बकाया", "Needs your documents": "आपके दस्तावेज़ चाहिए", "Language": "भाषा", "Lock portal": "पोर्टल लॉक करें", "Client": "क्लाइंट", "Our motto": "हमारा मूल मंत्र",
   "Call": "कॉल करें", "Email": "ईमेल", "Your account is encrypted end-to-end.": "आपका खाता पूरी तरह एन्क्रिप्टेड है।", "Pay now": "अभी भुगतान करें", "Overdue items": "अवधि पार", "Received": "प्राप्त",
   "Good morning": "सुप्रभात", "Good afternoon": "नमस्कार", "Good evening": "शुभ संध्या", "Nothing due right now": "अभी कुछ बकाया नहीं", "Tap a row to copy": "कॉपी करने के लिए टैप करें", "Documents shared with you": "आपके साथ साझा दस्तावेज़",
@@ -6490,13 +6550,15 @@ const firmCities = s => [s && s.addr1, s && s.addr2].filter(Boolean).map(a => a.
 const firmTag = s => [tr((s && s.tagline) || "Chartered Accountants"), firmCities(s)].filter(Boolean).join(" · ");
 const mottoFig = (s, cls) => { const f = firmMotto(s); return f.m ? `<figure class="${cls}"><blockquote>${esc(f.m)}</blockquote>${f.by ? `<figcaption>— <b>${esc(f.by)}</b>${f.role ? `<span>${esc(f.role)}</span>` : ""}</figcaption>` : ""}</figure>` : ""; };
 const initials = n => String(n || "").replace(/\b(private|pvt|limited|ltd|llp|and|&|the|m\/s\.?)\b/gi, " ").trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "•";
+// "Mr. Pranay Shastri" when a salutation is set; otherwise the respectful "ji"
+const portalSalute = c => { const n = contactName(c); return !n ? c.name : (c.sal || hasSal(n)) ? n : n + (S.lang === "hi" ? " जी" : " ji"); };
 const badge = (cls, t) => `<span class="badge ${cls || ""}">${esc(t)}</span>`;
 const greetT = () => tr(greet());
 const pAmt = n => money(n).replace(/\.00$/, "");
 
 function portalLock() {
   const pm = S.portalMeta || {}; const firm = pm.firm || "Prarabdh Neema & Associates"; const f = firmMotto(null);
-  const head = `<div class="lk-icon">PNA</div><div class="lk-firm">${esc(firm)}</div><div class="lk-sub">${tr("Chartered Accountants")} · ${tr("Client portal")}</div>
+  const head = `${pm.caLogo ? caLogoTile(pm, "lk-logo") : `<div class="lk-icon">PNA</div>`}<div class="lk-firm">${esc(firm)}</div><div class="lk-sub">${tr("Chartered Accountants")} · ${tr("Client portal")}</div>
     <figure class="lk-motto"><blockquote>${esc(f.m)}</blockquote>${f.by ? `<figcaption>— ${esc(f.by)}${f.role ? ` · ${esc(f.role)}` : ""}</figcaption>` : ""}</figure>`;
   const wrap = inner => `<div class="lock lk"><div class="lk-card">${head}${inner}</div></div>`;
   if (MODE === "online") { const o = S.online;
@@ -6522,7 +6584,7 @@ function portalShell() {
   const lockBtn = `<button class="mast-btn" data-act="plock" aria-label="${tr("Lock portal")}" title="${tr("Lock portal")}">${ic("lock")}</button>`;
   return `<div class="ios-shell">
     <header class="mast"><div class="mast-in">
-      <div class="mast-brand"><div class="appicon gold">PNA</div><div class="mast-name"><div class="mast-tag"><span>${esc(tr(s.tagline || "Chartered Accountants"))}</span>${firmCities(s) ? `<span class="mt-city"> · ${esc(firmCities(s))}</span>` : ""}</div><div class="mast-firm">${esc(s.firm)}</div>${mottoFig(s, "mast-motto")}</div></div>
+      <div class="mast-brand">${s.caLogo ? caLogoTile(s, "mast-logo") : `<div class="appicon gold">PNA</div>`}<div class="mast-name"><div class="mast-tag"><span>${esc(tr(s.tagline || "Chartered Accountants"))}</span>${firmCities(s) ? `<span class="mt-city"> · ${esc(firmCities(s))}</span>` : ""}</div><div class="mast-firm">${esc(s.firm)}</div>${mottoFig(s, "mast-motto")}</div></div>
       <div class="mast-r"><div class="mast-client"><span class="av">${esc(initials(c.name))}</span><span class="mc-t"><small>${tr("Client")}</small><b>${esc(c.name)}</b></span></div>${lockBtn}</div></div></header>
     <header class="ios-nav" aria-hidden="true"><div class="nav-l"><div class="appicon sm gold">PNA</div><div class="nav-firm">${esc(s.firm)}</div>${firmMotto(s).m ? `<div class="nav-motto">${esc(firmMotto(s).m)}</div>` : ""}</div><div class="nav-t">${tr(title)}</div><div class="nav-r">${lockBtn}</div></header>
     <div class="ios-body">
@@ -6549,10 +6611,12 @@ function pHome(pk, s, c) { const td = todayStr(); const bal = pk.bal; const dl =
     ${dl.earlier ? `<p class="foot-note">${dl.earlier} ${dl.earlier === 1 ? "earlier item is" : "earlier items are"} still open — <button class="link" data-ptab="comp">${tr("Compliance")}</button></p>` : ""}` : "";
   const recent = pk.invoices.slice().reverse().slice(0, 3);
   const notes = [...(pk.notes || []), ...feedItems(c.entity)].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date)); const shown = S.pAllNotes ? notes : notes.slice(0, 3);
-  return `${largeTitle(greetT() + (c.contact ? ", " + esc(String(c.contact).replace(/^(mr|mrs|ms|dr|shri|smt|ca|cs)\.?\s+/i, "").split(/\s+/)[0]) : ""), esc(new Date().toLocaleDateString(S.lang === "hi" ? "hi-IN" : "en-IN", {weekday: "long", day: "numeric", month: "long"})), `<span class="m-only">${esc(c.name)}${c.gstin ? " · " : ""}</span>${c.gstin ? `<span>GSTIN ${esc(c.gstin)}</span>` : ""}`)}${wallet}${quick}${dls}
+  const meta = `<span class="m-only">${esc(c.name)}${c.gstin ? " · " : ""}</span>${c.gstin ? `<span>GSTIN ${esc(c.gstin)}</span>` : ""}`;
+  const head = c.contact ? largeTitle(esc(portalSalute(c)), greetT(), meta) : largeTitle(greetT(), esc(new Date().toLocaleDateString(S.lang === "hi" ? "hi-IN" : "en-IN", {weekday: "long", day: "numeric", month: "long"})), meta);
+  return `${head}${wallet}${quick}${dls}
     ${recent.length ? `${secH(tr("Recent invoices"), `<button class="link" data-ptab="bills">${tr("See all")}</button>`)}<div class="glist">${recent.map(invRow).join("")}</div>` : ""}
     ${notes.length ? `${secH(tr("Updates"), notes.length > 3 ? `<button class="link" data-act="pnotes">${S.pAllNotes ? "Show fewer" : tr("See all")}</button>` : "")}<div class="glist notes-i">${shown.map(noteRow).join("")}</div>` : ""}
-    ${secH(tr("Thought for the day"))}<div class="card qcard">${quoteHTML(dayIndex() + qOff, "q-portal")}</div>`; }
+    ${secH(tr("For you today"))}<div class="card qcard">${quoteHTML(dayIndex() + qOff, "q-portal")}</div>`; }
 function noteRow(n) { const srcs = n.sources || []; return `<article class="nrow"><div class="n-top">${badge("acc", n.cat)}<span class="n-d">${esc(dLong(n.date))}</span>${srcs.length ? `<span class="n-v">${ic("shield")} ${srcs.length} sources</span>` : ""}</div><h3>${esc(n.title)}</h3>${n.body ? `<p>${esc(n.body)}</p>` : ""}
   ${n.link || srcs.length ? `<div class="n-links">${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${srcs.length ? "Official source" : "Read more"} ${ic("ext")}</a>` : ""}${srcs.filter(x => x.url !== n.link).slice(0, 3).map(x => `<a class="sub" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join("")}</div>` : ""}</article>`; }
 function pBills(pk, s, c) { const sub = S.pbill || "inv"; const hasR = (pk.receipts || []).length; const billed = r2(pk.invoices.reduce((a, i) => a + calcInvoice(i.f).grand, 0)); const paid = r2(pk.statement.reduce((a, x) => a + (x.cr || 0), 0));
