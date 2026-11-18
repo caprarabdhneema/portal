@@ -253,6 +253,13 @@ body:not(.ios) .qbtn:hover{transform:translateY(-1px);border-color:var(--gold)}
 .lock{background:radial-gradient(70% 50% at 50% 0%,rgba(31,56,100,.14),transparent 70%)}
 /* privacy: client in the office */
 body.privacy .stat .value,body.privacy .stat .foot,body.privacy .acct-list,body.privacy .pv,body.privacy main .tablewrap,body.privacy main .dlcard,body.privacy main .crow,body.privacy main .num,body.privacy main .filters .pill:not([data-tab]),body.privacy .itotal{filter:blur(9px);user-select:none;transition:filter .25s}
+/* period bar + sort */
+.perbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;margin:0 0 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--card-line,var(--line))}
+.perbar .perlbl{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:2px}.perbar .perlbl .ic{width:16px;height:16px;color:var(--accent)}
+.perbar select{width:auto;min-width:170px}.perbar input[type="date"]{width:auto;min-width:140px}
+.sortsel{display:inline-flex;align-items:center;gap:6px}.sortsel select{width:auto}
+.stack>.perbar{margin:0}
+@media (max-width:640px){.perbar select,.perbar input[type="date"]{flex:1 1 140px;min-width:0}}
 /* ===== Client portal — app-style interface (scoped to body.ios) ===== */
 body.ios{--i-bg:#F2F2F7;--i-side:#F8F8FA;--i-card:#FFFFFF;--i-sep:rgba(60,60,67,.14);--i-label:#0B0B0F;--i-sec:rgba(60,60,67,.62);--i-ter:rgba(60,60,67,.3);--i-fill:rgba(118,118,128,.12);--i-press:rgba(0,0,0,.045);
   --i-tint:#1F3864;--i-tint-ink:#fff;--i-gold:#A8841F;--i-green:#23804A;--i-red:#D2372D;--i-orange:#D9780B;--i-bar:rgba(247,247,250,.78);--i-shadow:0 1px 2px rgba(0,0,0,.04);
@@ -3076,7 +3083,7 @@ const VKEY = {contra: "F4", payment: "F5", receipt: "F6", journal: "F7", sales: 
 
 // ================= state & computations =================
 const S = {locked: true, pw: null, key: null, salt: null, iter: ITER, data: null, fy: fyOf(todayStr()), tab: ls.get("tab", "dash"), priv: !!ls.get("priv", ""),
-  f: {month: "all", type: "all", q: ""}, sel: null, lq: "", cq: "", invQ: "", invSt: "all", rep: ls.get("rep", "pl"), msgTab: "remind", cf: {view: "due", cat: "", st: "", staff: "", q: "", month: todayStr().slice(0, 7)}, cal: {m: todayStr().slice(0, 7), day: null}, notesAll: false, lt: {view: "new", tpl: null, client: "", date: todayStr(), f: {}, sub: null, body: null, to: null, ref: null, id: null, q: ""},
+  f: {month: "all", type: "all", q: "", sort: ls.get("vsort", "new")}, per: null, invSort: ls.get("isort", "new"), cSort: ls.get("csort", "name"), lSort: ls.get("lsort", "old"), sel: null, lq: "", cq: "", invQ: "", invSt: "all", rep: ls.get("rep", "pl"), msgTab: "remind", cf: {view: "due", cat: "", st: "", staff: "", q: "", month: todayStr().slice(0, 7)}, cal: {m: todayStr().slice(0, 7), day: null}, notesAll: false, lt: {view: "new", tpl: null, client: "", date: todayStr(), f: {}, sub: null, body: null, to: null, ref: null, id: null, q: ""},
   saveState: "", fileHandle: null, fileName: "", hasVault: undefined, online: {db: null, user: null, dl: null, mcp: null, ready: false, meta: undefined, baseVer: null}, lastAct: Date.now()};
 let memo = {}; const M = (k, fn) => (k in memo ? memo[k] : (memo[k] = fn()));
 const D = () => S.data; const ST = () => S.data.settings; const B = () => ST().booksStart;
@@ -3549,70 +3556,107 @@ async function exportSpec(spec, fmt) { try { const blob = fmt === "pdf" ? await 
 
 // ---------- report specs ----------
 const C = (h, w, align) => ({h, w, align});
+// ---------- period: any date range (Tally-style F2) — shared by Day Book, Invoices, Ledgers, Clients and Reports ----------
+const monEnd = ym => ymd(+ym.slice(0, 4), +ym.slice(5, 7), 31);
+function presetRange(p, y) { const fs = fyStart(y), fe = fyEnd(y), t = todayStr(), M = fyMonths(y);
+  if (p === "ytd") return {s: fs, e: t < fe ? (t < fs ? fs : t) : fe};
+  if (/^q[1-4]$/.test(p)) { const i = (+p[1] - 1) * 3; return {s: M[i] + "-01", e: monEnd(M[i + 2])}; }
+  if (p === "h1") return {s: fs, e: monEnd(M[5])}; if (p === "h2") return {s: M[6] + "-01", e: fe};
+  if (p === "d7") return {s: addDays(t, -6), e: t}; if (p === "d30") return {s: addDays(t, -29), e: t};
+  if (/^\d{4}-\d{2}$/.test(p)) return {s: p + "-01", e: monEnd(p)};
+  return {s: fs, e: fe}; }
+function PER() { const y = S.fy; if (!S.per || S.per.fy !== y) S.per = {fy: y, p: "fy", s: "", e: ""};
+  const p = S.per.p; let r = p === "c" ? {s: S.per.s || fyStart(y), e: S.per.e || fyEnd(y)} : presetRange(p, y); if (r.s > r.e) r = {s: r.e, e: r.s};
+  const full = p === "fy"; return {s: r.s < B() ? B() : r.s, e: r.e, full, fy: y, p, label: full ? "FY " + fyLabel(y) : dmy(r.s) + " to " + dmy(r.e), file: full ? "FY " + fyLabel(y) : r.s + " to " + r.e}; }
+const inP = (d, P) => d >= P.s && d <= P.e;
+// a number = that financial year (old behaviour); an object from PER() = that range
+const rgOf = y => (typeof y === "object" && y) ? (y.full ? {...periodOf(y.fy), full: 1, fy: y.fy, label: y.label, file: y.file} : y) : {...periodOf(y), full: 1, fy: y, label: "FY " + fyLabel(y), file: "FY " + fyLabel(y)};
+const asOfOf = R => R.e > todayStr() ? todayStr() : R.e;
+const PER_OPTS = y => [["fy", "Full year · FY " + fyLabel(y)], ["ytd", "Year to date"], ["d7", "Last 7 days"], ["d30", "Last 30 days"], ["q1", "Q1 · Apr–Jun"], ["q2", "Q2 · Jul–Sep"], ["q3", "Q3 · Oct–Dec"], ["q4", "Q4 · Jan–Mar"], ["h1", "H1 · Apr–Sep"], ["h2", "H2 · Oct–Mar"], ...fyMonths(y).map(m => [m, monLabel(m).replace(" ", " 20")]), ["c", "Custom dates"]];
+function perBar(note) { const P = PER(), p = S.per.p;
+  return `<div class="perbar" role="group" aria-label="Period"><span class="perlbl">${ic("cal")}Period</span><select id="per-p" aria-label="Period preset">${PER_OPTS(S.fy).map(([k, l]) => `<option value="${k}" ${p === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <input type="date" id="per-s" value="${P.s}" aria-label="From date"><span class="muted small">to</span><input type="date" id="per-e" value="${P.e}" aria-label="To date">${p !== "fy" ? `<button class="btn sm" type="button" data-act="perfy">Full year</button>` : ""}${note ? `<span class="small muted">${note}</span>` : ""}</div>`; }
+const sortSel = (id, cur, opts) => `<label class="sortsel"><span class="small muted">Sort</span><select id="${id}" aria-label="Sort by">${opts.map(([k, l]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>`;
+const V_SORTS = [["new", "Date — newest first"], ["old", "Date — oldest first"], ["amt", "Amount — high to low"], ["amta", "Amount — low to high"], ["party", "Party — A to Z"], ["type", "Voucher type"]];
+function sortVouchers(list, k) { const a = list.slice(); const by = (f, dir = 1) => a.sort((x, y) => { const p = f(x), q = f(y); return (p < q ? -1 : p > q ? 1 : 0) * dir || x.date.localeCompare(y.date); });
+  if (k === "old") return a; if (k === "amt") return by(v => vAmount(v), -1); if (k === "amta") return by(v => vAmount(v)); if (k === "party") return by(v => vParty(v).toLowerCase()); if (k === "type") return by(v => VTYPE[v.type] || v.type);
+  return a.reverse(); }
 const periodOf = y => { const s = fyStart(y) < B() ? B() : fyStart(y); const e = y === fyOf(todayStr()) ? todayStr() : fyEnd(y); return {s, e}; };
-function specLedger(id, y) {
-  const l = led(id), g = G(l.group); const {s, e} = periodOf(y); const open = s === B() ? r2(l.opening || 0) : bal(id, addDays(s, -1)); let run = open; const rows = [];
+function specLedger(id, y, newest) {
+  const l = led(id), g = G(l.group); const R = rgOf(y), {s, e} = R; const open = s === B() ? r2(l.opening || 0) : bal(id, addDays(s, -1)); let run = open; const rows = [];
   rows.push({c: [dmy(s), "Opening balance", "", "", open > 0 ? open : null, open < 0 ? -open : null, Math.abs(open), open >= 0 ? "Dr" : "Cr"], t: "sub"});
   let tDr = 0, tCr = 0;
   for (const v of vouchers()) { if (v.date < s || v.date > e) continue; for (const x of v.lines || []) if (x.l === id) { run = r2(run + x.dr - x.cr); tDr += x.dr; tCr += x.cr;
     const other = [...new Set((v.lines || []).filter(z => z.l !== id).map(z => lname(z.l)))].join(", ");
     const part = isClient(l) ? stLabel(v, x) : other + (v.narration ? " — " + v.narration : ""); rows.push({c: [dmy(v.date), part, VTYPE[v.type], vno(v), x.dr || null, x.cr || null, Math.abs(run), run >= 0 ? "Dr" : "Cr"]}); } }
+  if (newest && rows.length > 2) rows.splice(1, rows.length - 1, ...rows.slice(1).reverse());
   rows.push({c: ["", "Total for the period", "", "", r2(tDr), r2(tCr), null, ""], t: "total"});
   rows.push({c: [dmy(e), "Closing balance", "", "", null, null, Math.abs(run), run >= 0 ? "Dr" : "Cr"], t: "grand"});
   const client = isClient(l); const cd = client ? clientDues().get(id) : null;
-  return {title: client ? "Statement of Account" : "Ledger Account", subtitle: "For the period " + dLong(s) + " to " + dLong(e), sheet: l.name.slice(0, 28), fileName: (client ? "Statement of Account " : "Ledger ") + l.name + " FY " + fyLabel(y),
+  return {title: client ? "Statement of Account" : "Ledger Account", subtitle: "For the period " + dLong(s) + " to " + dLong(e), sheet: l.name.slice(0, 28), fileName: (client ? "Statement of Account " : "Ledger ") + l.name + " " + R.file,
     party: {label: client ? "Statement of account for" : g.name, name: l.name, lines: [[l.address, [l.city, stateName(l.stateCode)].filter(Boolean).join(", ")].filter(Boolean).join(", "), l.gstin ? "GSTIN: " + l.gstin : "", l.pan ? "PAN: " + l.pan : ""].filter(Boolean)},
     meta: [["Period", dmy(s) + " to " + dmy(e)], ["Opening balance", money(Math.abs(open)) + (open >= 0 ? " Dr" : " Cr")], ["Closing balance", money(Math.abs(run)) + (run >= 0 ? " Dr" : " Cr")], ["Statement date", dLong(todayStr())]],
     tables: [{cols: [C("Date", 20), C("Particulars", 62), C("Vch type", 16), C("Vch no.", 32), C("Debit (₹)", 24, "r"), C("Credit (₹)", 24, "r"), C("Balance (₹)", 26, "r"), C("", 8, "c")], rows}],
     summary: client && cd ? [["Total debits", money(tDr)], ["Total credits", money(tCr)], ["Amount payable as on " + dmy(todayStr()), money(Math.max(0, cd.bal)), 1], ...(cd.bal > 0 ? [["Ageing (0-30 / 31-60 / 61-90 / 90+)", cd.age.map(amt).join(" / ")]] : [])] : [["Total debits", money(tDr)], ["Total credits", money(tCr)], ["Closing balance", money(Math.abs(run)) + (run >= 0 ? " Dr" : " Cr"), 1]],
     notes: client ? ["E. & O.E. Please verify this statement and report any discrepancy within 15 days of receipt; otherwise it will be treated as correct.", "Payments are set off against the oldest outstanding invoice first. TDS deducted is credited on receipt of payment."] : [], sign: client};
 }
-function specPL(y) { const {s, e} = periodOf(y); const pl = periodPL(s, fyEnd(y)); const grp = items => { const m = new Map(); for (const it of items) { const k = G(it.l.group).name; if (!m.has(k)) m.set(k, []); m.get(k).push(it); } return m; };
+function specPL(y) { const R = rgOf(y), s = R.s, e = R.full ? fyEnd(R.fy) : R.e; const pl = periodPL(s, e); const grp = items => { const m = new Map(); for (const it of items) { const k = G(it.l.group).name; if (!m.has(k)) m.set(k, []); m.get(k).push(it); } return m; };
   const rows = [{c: ["INCOME", null], t: "sub"}]; for (const [g, arr] of grp(pl.inc)) { rows.push({c: [g, r2(arr.reduce((a, x) => a + x.val, 0))], t: "sub"}); arr.forEach(x => rows.push({c: ["    " + x.l.name, x.val]})); } rows.push({c: ["Total income", pl.incT], t: "total"});
   rows.push({c: ["EXPENDITURE", null], t: "sub"}); for (const [g, arr] of grp(pl.exp)) { rows.push({c: [g, r2(arr.reduce((a, x) => a + x.val, 0))], t: "sub"}); arr.forEach(x => rows.push({c: ["    " + x.l.name, x.val]})); } rows.push({c: ["Total expenditure", pl.expT], t: "total"});
   rows.push({c: [pl.net >= 0 ? "Excess of income over expenditure" : "Excess of expenditure over income", Math.abs(pl.net)], t: "grand"});
-  return {title: "Income & Expenditure Account", subtitle: "For the period " + dLong(s) + " to " + dLong(fyEnd(y)), sheet: "Profit & Loss", fileName: "Income & Expenditure FY " + fyLabel(y), tables: [{cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows}], sign: true}; }
-function specBS(y) { const asOf = y === fyOf(todayStr()) ? todayStr() : fyEnd(y); const d = bsData(asOf); const grp = items => { const m = new Map(); for (const it of items) { const k = G(it.l.group).name; if (!m.has(k)) m.set(k, []); m.get(k).push(it); } return m; };
+  return {title: "Income & Expenditure Account", subtitle: "For the period " + dLong(s) + " to " + dLong(e), sheet: "Profit & Loss", fileName: "Income & Expenditure " + R.file, tables: [{cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows}], sign: true}; }
+function specBS(y) { const asOf = asOfOf(typeof y === "object" ? y : {e: fyEnd(y)}); const d = bsData(asOf); const grp = items => { const m = new Map(); for (const it of items) { const k = G(it.l.group).name; if (!m.has(k)) m.set(k, []); m.get(k).push(it); } return m; };
   const side = (items, extra) => { const rows = []; for (const [g, arr] of grp(items)) { rows.push({c: [g, r2(arr.reduce((a, x) => a + x.val, 0))], t: "sub"}); arr.forEach(x => rows.push({c: ["    " + x.l.name, x.val]})); } return rows.concat(extra); };
   const lRows = side(d.Lb, [{c: ["Income & Expenditure A/c (surplus)", d.ie], t: "sub"}, {c: ["    Brought forward", d.prevPL]}, {c: ["    Current year", d.curPL]}, ...(d.openDiff > 0 ? [{c: ["Difference in opening balances", d.openDiff]}] : []), {c: ["Total", d.Lt], t: "grand"}]);
   const aRows = side(d.A, [...(d.openDiff < 0 ? [{c: ["Difference in opening balances", -d.openDiff]}] : []), {c: ["Total", d.At], t: "grand"}]);
   return {title: "Balance Sheet", subtitle: "As on " + dLong(asOf), sheet: "Balance Sheet", fileName: "Balance Sheet as on " + dmy(asOf), tables: [{heading: "Capital & liabilities", cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows: lRows}, {heading: "Assets", cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows: aRows}], sign: true}; }
-function specTB(y) { const asOf = y === fyOf(todayStr()) ? todayStr() : fyEnd(y); const rows = []; let dr = 0, cr = 0;
+function specTB(y) { const asOf = asOfOf(typeof y === "object" ? y : {e: fyEnd(y)}); const rows = []; let dr = 0, cr = 0;
   for (const r of tbRows(asOf)) { const gd = r2(r.ls.reduce((a, x) => a + Math.max(0, x.v), 0)), gc = r2(r.ls.reduce((a, x) => a + Math.max(0, -x.v), 0)); dr += gd; cr += gc; rows.push({c: [r.g.name, gd || null, gc || null], t: "sub"}); r.ls.forEach(x => rows.push({c: ["    " + x.l.name, x.v > 0 ? x.v : null, x.v < 0 ? -x.v : null]})); }
   const diff = r2(dr - cr); if (diff) rows.push({c: ["Difference in opening balances", diff < 0 ? -diff : null, diff > 0 ? diff : null]}); rows.push({c: ["Total", r2(Math.max(dr, cr)), r2(Math.max(dr, cr))], t: "grand"});
   return {title: "Trial Balance", subtitle: "As on " + dLong(asOf), sheet: "Trial Balance", fileName: "Trial Balance as on " + dmy(asOf), tables: [{cols: [C("Particulars", 120), C("Debit (₹)", 30, "r"), C("Credit (₹)", 30, "r")], rows}], sign: true}; }
 function specRP(y) { const d = rpData(y); const obT = r2(d.ml.reduce((a, l) => a + (d.ob.get(l.id) || 0), 0)), cbT = r2(d.ml.reduce((a, l) => a + (d.cb.get(l.id) || 0), 0)); const sum = a => r2(a.reduce((x, y) => x + y.val, 0));
   const rec = [{c: ["Opening balance", obT], t: "sub"}, ...d.ml.map(l => ({c: ["    " + l.name, d.ob.get(l.id) || 0]})), {c: ["Receipts", sum(d.rec)], t: "sub"}, ...d.rec.map(x => ({c: ["    " + x.l.name, x.val]})), {c: ["Total", r2(obT + sum(d.rec))], t: "grand"}];
   const pay = [{c: ["Payments", sum(d.pay)], t: "sub"}, ...d.pay.map(x => ({c: ["    " + x.l.name, x.val]})), {c: ["Closing balance", cbT], t: "sub"}, ...d.ml.map(l => ({c: ["    " + l.name, d.cb.get(l.id) || 0]})), {c: ["Total", r2(sum(d.pay) + cbT)], t: "grand"}];
-  return {title: "Receipts & Payments Account", subtitle: "For the period " + dLong(d.s) + " to " + dLong(d.e), sheet: "Receipts & Payments", fileName: "Receipts & Payments FY " + fyLabel(y), tables: [{heading: "Receipts", cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows: rec}, {heading: "Payments", cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows: pay}], sign: true}; }
-function specGST(y) { const rows = gstRows(y); const byM = new Map(fyMonths(y).map(m => [m, {n: 0, t: 0, c: 0, s: 0, i: 0, g: 0}]));
+  return {title: "Receipts & Payments Account", subtitle: "For the period " + dLong(d.s) + " to " + dLong(d.e), sheet: "Receipts & Payments", fileName: "Receipts & Payments " + rgOf(y).file, tables: [{heading: "Receipts", cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows: rec}, {heading: "Payments", cols: [C("Particulars", 140), C("Amount (₹)", 40, "r")], rows: pay}], sign: true}; }
+function specGST(y) { const R = rgOf(y); const rows = gstRows(y); const byM = new Map(monthsIn(R).map(m => [m, {n: 0, t: 0, c: 0, s: 0, i: 0, g: 0}]));
   rows.forEach(r => { const o = byM.get(r.v.date.slice(0, 7)); o.n++; o.t += r.iv.taxable; o.c += r.iv.cgst; o.s += r.iv.sgst; o.i += r.iv.igst; o.g += r.iv.grand; });
   const T = [...byM.values()].reduce((a, o) => ({n: a.n + o.n, t: a.t + o.t, c: a.c + o.c, s: a.s + o.s, i: a.i + o.i, g: a.g + o.g}), {n: 0, t: 0, c: 0, s: 0, i: 0, g: 0});
   const m1 = [...byM].filter(([, o]) => o.n).map(([m, o]) => ({c: [monLabel(m), String(o.n), r2(o.t), r2(o.c), r2(o.s), r2(o.i), r2(o.g)]})); m1.push({c: ["Total", String(T.n), r2(T.t), r2(T.c), r2(T.s), r2(T.i), r2(T.g)], t: "grand"});
   const m2 = rows.map(r => ({c: [dmy(r.v.date), r.v.no, r.c.name, r.c.gstin || "B2C", ({intra: "Intra", inter: "Inter", export: "Export", nogst: "Nil"})[r.v.f.supply], r.iv.taxable, r2(r.iv.cgst + r.iv.sgst + r.iv.igst), r.iv.grand]}));
-  return {title: "GST Summary — Outward Supplies", subtitle: "FY " + fyLabel(y) + " · for GSTR-1 / GSTR-3B", sheet: "GST Summary", fileName: "GST Summary FY " + fyLabel(y), landscape: true,
+  return {title: "GST Summary — Outward Supplies", subtitle: R.label + " · for GSTR-1 / GSTR-3B", sheet: "GST Summary", fileName: "GST Summary " + R.file, landscape: true,
     tables: [{heading: "Month-wise", cols: [C("Month", 30), C("Invoices", 20, "r"), C("Taxable value", 34, "r"), C("CGST", 28, "r"), C("SGST", 28, "r"), C("IGST", 28, "r"), C("Invoice value", 34, "r")], rows: m1},
       {heading: "Invoice-wise", cols: [C("Date", 22), C("Invoice no.", 34), C("Client", 70), C("GSTIN", 38), C("Supply", 18), C("Taxable", 30, "r"), C("Tax", 26, "r"), C("Total", 30, "r")], rows: m2}]}; }
-function specTDS(y) { const m = new Map(); vouchers().forEach(v => { if (v.type === "receipt" && +v.f.tds && inFY(v.date, y)) { const o = m.get(v.f.party) || {t: 0, g: 0, n: 0}; o.t += +v.f.tds; o.g += +v.f.amount + +v.f.tds; o.n++; m.set(v.f.party, o); } });
+function specTDS(y) { const R = rgOf(y); const m = new Map(); vouchers().forEach(v => { if (v.type === "receipt" && +v.f.tds && inP(v.date, R)) { const o = m.get(v.f.party) || {t: 0, g: 0, n: 0}; o.t += +v.f.tds; o.g += +v.f.amount + +v.f.tds; o.n++; m.set(v.f.party, o); } });
   const rows = [...m].sort((a, b) => b[1].t - a[1].t).map(([id, o]) => ({c: [lname(id), (led(id) || {}).pan || "", String(o.n), r2(o.g), r2(o.t)]})); rows.push({c: ["Total", "", "", r2([...m.values()].reduce((a, o) => a + o.g, 0)), r2([...m.values()].reduce((a, o) => a + o.t, 0))], t: "grand"});
-  return {title: "TDS Deducted by Clients", subtitle: "FY " + fyLabel(y) + " · for reconciliation with Form 26AS / AIS", sheet: "TDS", fileName: "TDS Receivable FY " + fyLabel(y), tables: [{cols: [C("Client", 80), C("PAN", 30), C("Receipts", 18, "r"), C("Gross (₹)", 30, "r"), C("TDS (₹)", 28, "r")], rows}]}; }
+  return {title: "TDS Deducted by Clients", subtitle: R.label + " · for reconciliation with Form 26AS / AIS", sheet: "TDS", fileName: "TDS Receivable " + R.file, tables: [{cols: [C("Client", 80), C("PAN", 30), C("Receipts", 18, "r"), C("Gross (₹)", 30, "r"), C("TDS (₹)", 28, "r")], rows}]}; }
 function specAge() { const list = [...clientDues().values()].filter(s => s.bal).sort((a, b) => b.bal - a.bal); const T = [0, 0, 0, 0]; let tb = 0; list.forEach(s => { tb += s.bal; s.age.forEach((v, i) => T[i] += v); });
   const rows = list.map(s => ({c: [lname(s.id), (led(s.id) || {}).phone || "", s.bal, s.age[0] || null, s.age[1] || null, s.age[2] || null, s.age[3] || null]})); rows.push({c: ["Total", "", r2(tb), ...T.map(r2)], t: "grand"});
   return {title: "Client Dues — Ageing", subtitle: "As on " + dLong(todayStr()), sheet: "Client Ageing", fileName: "Client Ageing " + dmy(todayStr()), landscape: true,
     tables: [{cols: [C("Client", 80), C("Phone", 30), C("Due (₹)", 30, "r"), C("0–30 days", 28, "r"), C("31–60", 26, "r"), C("61–90", 26, "r"), C("Over 90", 28, "r")], rows}], notes: ["Receipts are set off against the oldest outstanding amount first."]}; }
-function specDay(y, month) { const rows = []; const list = vouchers().filter(v => inFY(v.date, y) && (!month || month === "all" || v.date.slice(0, 7) === month));
+function specDay(y, f) { f = f || {}; const R = rgOf(y), q = (f.q || "").trim().toLowerCase(); const rows = [];
+  let list = vouchers().filter(v => inP(v.date, R) && (!f.type || f.type === "all" || v.type === f.type)); if (q) list = list.filter(v => (vParty(v) + " " + vMeta(v) + " " + vno(v) + " " + vAmount(v)).toLowerCase().includes(q));
+  list = f.sort ? sortVouchers(list, f.sort) : list;
   let td = 0, tc = 0; for (const v of list) (v.lines || []).forEach((x, i) => { td += x.dr; tc += x.cr; rows.push({c: [i ? "" : dmy(v.date), i ? "" : VTYPE[v.type] + " " + vno(v), lname(x.l), x.dr || null, x.cr || null, i ? "" : (v.narration || "")]}); });
   rows.push({c: ["", "", "Total", r2(td), r2(tc), ""], t: "grand"});
-  return {title: "Day Book", subtitle: month && month !== "all" ? monLabel(month).replace(" ", " 20") : "FY " + fyLabel(y), sheet: "Day Book", fileName: "Day Book " + (month && month !== "all" ? month : "FY " + fyLabel(y)), landscape: true,
+  return {title: "Day Book", subtitle: R.label + (f.type && f.type !== "all" ? " · " + VTYPE[f.type] : ""), sheet: "Day Book", fileName: "Day Book " + R.file, landscape: true,
     tables: [{cols: [C("Date", 22), C("Voucher", 34), C("Ledger", 70), C("Debit (₹)", 30, "r"), C("Credit (₹)", 30, "r"), C("Narration", 80)], rows}]}; }
-function specInvoices(y) { const rows = gstRows(y).map(r => { const st = invStatus(r.v); return {c: [dmy(r.v.date), r.v.no, r.c.name, r.iv.taxable, r2(r.iv.cgst + r.iv.sgst + r.iv.igst), r.iv.grand, st.paid, st.due, st.label]}; });
+function specInvoices(y, o) { const R = rgOf(y); const rows = invRows(gstRows(y).map(r => ({...r, st: invStatus(r.v)})), o || {}).map(r => { const st = invStatus(r.v); return {c: [dmy(r.v.date), r.v.no, r.c.name, r.iv.taxable, r2(r.iv.cgst + r.iv.sgst + r.iv.igst), r.iv.grand, st.paid, st.due, st.label]}; });
   const T = rows.reduce((a, r) => [a[0] + r.c[3], a[1] + r.c[4], a[2] + r.c[5], a[3] + r.c[6], a[4] + r.c[7]], [0, 0, 0, 0, 0]); rows.push({c: ["", "", "Total", ...T.map(r2), ""], t: "grand"});
-  return {title: "Invoice Register", subtitle: "FY " + fyLabel(y), sheet: "Invoices", fileName: "Invoice Register FY " + fyLabel(y), landscape: true,
+  return {title: "Invoice Register", subtitle: R.label, sheet: "Invoices", fileName: "Invoice Register " + R.file, landscape: true,
     tables: [{cols: [C("Date", 22), C("Invoice no.", 34), C("Client", 70), C("Taxable", 28, "r"), C("GST", 24, "r"), C("Total", 28, "r"), C("Received", 28, "r"), C("Due", 26, "r"), C("Status", 22)], rows}]}; }
 function specClients() { const cd = clientDues(); const rows = clients().map(c => ({c: [c.name, c.contact || "", c.phone || "", c.email || "", c.gstin || "", c.pan || "", [c.city, stateName(c.stateCode)].filter(Boolean).join(", "), (cd.get(c.id) || {}).bal || 0]}));
   return {title: "Client Master", subtitle: "As on " + dLong(todayStr()), sheet: "Clients", fileName: "Client Master " + dmy(todayStr()), landscape: true,
     tables: [{cols: [C("Client", 60), C("Contact", 30), C("Phone", 28), C("Email", 50), C("GSTIN", 36), C("PAN", 24), C("City / State", 36), C("Due (₹)", 26, "r")], rows}]}; }
-const REPORT_SPECS = {pl: () => specPL(S.fy), bs: () => specBS(S.fy), tb: () => specTB(S.fy), rp: () => specRP(S.fy), gst: () => specGST(S.fy), tds: () => specTDS(S.fy), age: () => specAge()};
+const REPORT_SPECS = {pl: () => specPL(PER()), bs: () => specBS(PER()), tb: () => specTB(PER()), rp: () => specRP(PER()), gst: () => specGST(PER()), tds: () => specTDS(PER()), age: () => specAge()};
+const monthsIn = R => { const o = []; let m = R.s.slice(0, 7); while (m <= R.e.slice(0, 7)) { o.push(m); m = addMonths(m + "-01", 1).slice(0, 7); } return o; };
+const INV_SORTS = [["new", "Date — newest first"], ["old", "Date — oldest first"], ["amt", "Amount — high to low"], ["amta", "Amount — low to high"], ["client", "Client — A to Z"], ["due", "Amount due — high to low"], ["no", "Invoice no."]];
+// filter + sort invoices the same way on screen and in exports
+function invRows(rows, o) { const q = (o.q || "").trim().toLowerCase(), st = o.st || "all";
+  if (st !== "all") rows = rows.filter(r => st === "open" ? r.st.due > 0 : r.st.label === (st === "paid" ? "Paid" : "Overdue"));
+  if (q) rows = rows.filter(r => (r.v.no + " " + lname(r.v.f.party) + " " + (r.v.f.items || []).map(x => x.desc).join(" ")).toLowerCase().includes(q));
+  const k = o.sort || "old", by = (f, dir = 1) => rows.slice().sort((a, b) => { const p = f(a), q2 = f(b); return (p < q2 ? -1 : p > q2 ? 1 : 0) * dir || a.v.date.localeCompare(b.v.date); });
+  if (k === "new") return rows.slice().reverse(); if (k === "amt") return by(r => r.iv.grand, -1); if (k === "amta") return by(r => r.iv.grand); if (k === "client") return by(r => lname(r.v.f.party).toLowerCase());
+  if (k === "due") return by(r => r.st.due, -1); if (k === "no") return by(r => r.v.no); return rows; }
 function specPortalStatement(pk) { const rows = pk.statement.map((x, i) => ({c: [dmy(x.date), x.label + (x.ref ? " · " + x.ref : ""), x.dr || null, x.cr || null, Math.abs(x.bal), x.bal >= 0 ? "Dr" : "Cr"], t: i === 0 ? "sub" : undefined}));
   const last = pk.statement[pk.statement.length - 1] || {bal: 0}; rows.push({c: [dmy(todayStr()), "Closing balance", null, null, Math.abs(last.bal), last.bal >= 0 ? "Dr" : "Cr"], t: "grand"}); const c = pk.client;
   return {title: "Statement of Account", subtitle: "Up to " + dLong((pk.at || nowIso()).slice(0, 10)), fileName: "Statement of Account " + c.name, party: {label: "Statement of account for", name: c.name, lines: [c.gstin ? "GSTIN: " + c.gstin : "", c.pan ? "PAN: " + c.pan : ""].filter(Boolean)},
@@ -3730,33 +3774,29 @@ function vTable(rows) {
 
 // ----- Day Book
 function vDay() {
-  const f = S.f, q = f.q.trim().toLowerCase(); let rows = vouchers().filter(v => inFY(v.date, S.fy));
-  if (f.month !== "all") rows = rows.filter(v => v.date.slice(0, 7) === f.month);
+  const f = S.f, q = f.q.trim().toLowerCase(), P = PER(); let rows = vouchers().filter(v => inP(v.date, P));
   if (f.type !== "all") rows = rows.filter(v => v.type === f.type);
   if (q) rows = rows.filter(v => (vParty(v) + " " + vMeta(v) + " " + vno(v) + " " + vAmount(v)).toLowerCase().includes(q));
-  rows = rows.slice().reverse(); let tin = 0, tout = 0; rows.forEach(v => { for (const x of v.lines || []) if (isMoney(led(x.l)) && v.type !== "contra") { tin += x.dr; tout += x.cr; } });
-  return `<div class="panel"><div class="panel-head"><div class="filters">
-    <select id="f-month" aria-label="Month"><option value="all">All months</option>${fyMonths(S.fy).map(m => `<option value="${m}" ${f.month === m ? "selected" : ""}>${monLabel(m)}</option>`).join("")}</select>
+  rows = sortVouchers(rows, f.sort); let tin = 0, tout = 0; rows.forEach(v => { for (const x of v.lines || []) if (isMoney(led(x.l)) && v.type !== "contra") { tin += x.dr; tout += x.cr; } });
+  return `<div class="panel">${perBar()}<div class="panel-head"><div class="filters">
     <select id="f-type" aria-label="Voucher type"><option value="all">All vouchers</option>${Object.entries(VTYPE).map(([k, l]) => `<option value="${k}" ${f.type === k ? "selected" : ""}>${l}</option>`).join("")}</select>
-    <input id="f-q" type="search" placeholder="Search party, narration, UTR, voucher no." value="${esc(f.q)}"></div><div class="actions"><button class="btn sm" data-exp="day:pdf">PDF</button><button class="btn sm" data-exp="day:xlsx">Excel</button></div></div>
-    <div class="filters" style="margin-bottom:12px"><span class="pill">${rows.length} vouchers</span><span class="pill in">Money in ${money(tin)}</span><span class="pill out">Money out ${money(tout)}</span></div>
+    <input id="f-q" type="search" placeholder="Search party, narration, UTR, voucher no." value="${esc(f.q)}">${sortSel("f-sort", f.sort, V_SORTS)}</div><div class="actions"><button class="btn sm" data-exp="day:pdf">PDF</button><button class="btn sm" data-exp="day:xlsx">Excel</button></div></div>
+    <div class="filters" style="margin-bottom:12px"><span class="pill">${rows.length} vouchers · ${esc(P.label)}</span><span class="pill in">Money in ${money(tin)}</span><span class="pill out">Money out ${money(tout)}</span></div>
     ${rows.length ? vTable(rows) : `<div class="empty"><strong>No vouchers match</strong>Change the filters or add one with “+ New”.</div>`}</div>`;
 }
 
 // ----- Invoices
 function vInv() {
-  const q = S.invQ.trim().toLowerCase(); let rows = vouchers().filter(v => v.type === "sales" && inFY(v.date, S.fy)).map(v => ({v, st: invStatus(v), iv: calcInvoice(v.f)}));
+  const q = S.invQ.trim().toLowerCase(), P = PER(); let rows = vouchers().filter(v => v.type === "sales" && inP(v.date, P)).map(v => ({v, st: invStatus(v), iv: calcInvoice(v.f)}));
   const T = {n: rows.length, billed: 0, gst: 0, due: 0, over: 0}; rows.forEach(r => { T.billed += r.iv.grand; T.gst += r.iv.cgst + r.iv.sgst + r.iv.igst; T.due += r.st.due; if (r.st.label === "Overdue") T.over += r.st.due; });
-  if (S.invSt !== "all") rows = rows.filter(r => S.invSt === "open" ? r.st.due > 0 : r.st.label === (S.invSt === "paid" ? "Paid" : "Overdue"));
-  if (q) rows = rows.filter(r => (r.v.no + " " + lname(r.v.f.party) + " " + (r.v.f.items || []).map(x => x.desc).join(" ")).toLowerCase().includes(q));
-  rows.reverse();
-  return `<div class="stack"><div class="grid cols-4">
-    <div class="panel stat"><div class="label">Invoices · FY ${fyLabel(S.fy)}</div><div class="value">${T.n}</div><div class="foot">Billed ${money(T.billed)}</div></div>
+  rows = invRows(rows, {st: S.invSt, q, sort: S.invSort});
+  return `<div class="stack">${perBar()}<div class="grid cols-4">
+    <div class="panel stat"><div class="label">Invoices · ${esc(P.label)}</div><div class="value">${T.n}</div><div class="foot">Billed ${money(T.billed)}</div></div>
     <div class="panel stat"><div class="label">GST charged</div><div class="value">${money(T.gst)}</div><div class="foot">CGST + SGST + IGST</div></div>
     <div class="panel stat"><div class="label">Still to receive</div><div class="value">${money(T.due)}</div><div class="foot">Against these invoices</div></div>
     <div class="panel stat"><div class="label">Overdue</div><div class="value amt-out">${money(T.over)}</div><div class="foot">Past the due date</div></div></div>
   <div class="panel"><div class="panel-head"><div class="filters"><div class="seg">${[["all", "All"], ["open", "Unpaid"], ["over", "Overdue"], ["paid", "Paid"]].map(([k, l]) => `<button data-invst="${k}" aria-pressed="${S.invSt === k}">${l}</button>`).join("")}</div>
-    <input id="inv-q" type="search" placeholder="Search invoice no., client, service" value="${esc(S.invQ)}"></div><div class="actions"><button class="btn sm" data-exp="invreg:pdf">Register PDF</button><button class="btn sm" data-exp="invreg:xlsx">Excel</button><button class="btn primary" data-new="sales">+ New invoice <kbd>F8</kbd></button></div></div>
+    <input id="inv-q" type="search" placeholder="Search invoice no., client, service" value="${esc(S.invQ)}">${sortSel("inv-sort", S.invSort, INV_SORTS)}</div><div class="actions"><button class="btn sm" data-exp="invreg:pdf">Register PDF</button><button class="btn sm" data-exp="invreg:xlsx">Excel</button><button class="btn primary" data-new="sales">+ New invoice <kbd>F8</kbd></button></div></div>
     ${rows.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Invoice no.</th><th>Client</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Total</th><th>Status</th></tr></thead><tbody>
     ${rows.map(r => `<tr class="click" data-inv="${r.v.id}"><td class="num">${dmy(r.v.date)}</td><td class="num"><b>${esc(r.v.no)}</b></td><td>${esc(lname(r.v.f.party))}<div class="meta">${esc((r.v.f.items || []).map(x => x.desc).join(", "))}</div></td>
       <td class="r num">${amt(r.iv.taxable)}</td><td class="r num">${amt(r.iv.cgst + r.iv.sgst + r.iv.igst)}</td><td class="r num"><b>${amt(r.iv.grand)}</b></td><td><span class="pill ${r.st.cls}">${r.st.label}${r.st.label === "Part paid" ? " · " + money(r.st.due) + " due" : ""}</span></td></tr>`).join("")}
@@ -3765,13 +3805,15 @@ function vInv() {
 
 // ----- Clients
 function vClients() {
-  const q = S.cq.trim().toLowerCase(); const cd = clientDues();
+  const q = S.cq.trim().toLowerCase(); const cd = clientDues(), P = PER();
   let list = clients().filter(c => !q || [c.name, c.gstin, c.pan, c.phone, c.email, c.city, c.contact].join(" ").toLowerCase().includes(q));
-  const billed = new Map(), rcv = new Map(); for (const v of vouchers()) { if (!inFY(v.date, S.fy)) continue;
+  const billed = new Map(), rcv = new Map(); for (const v of vouchers()) { if (!inP(v.date, P)) continue;
     if (v.type === "sales") billed.set(v.f.party, (billed.get(v.f.party) || 0) + calcInvoice(v.f).grand); if (v.type === "receipt") rcv.set(v.f.party, (rcv.get(v.f.party) || 0) + r2(v.f.amount) + r2(v.f.tds)); }
-  return `<div class="panel"><div class="panel-head"><div class="filters"><input id="c-q" type="search" placeholder="Search name, GSTIN, PAN, phone, city" value="${esc(S.cq)}"></div>
+  const cs = S.cSort, due = c => (cd.get(c.id) || {bal: 0}).bal, old = c => (cd.get(c.id) || {}).oldest || "9999";
+  list = list.slice().sort((a, b) => cs === "due" ? due(b) - due(a) : cs === "oldest" ? old(a).localeCompare(old(b)) : cs === "billed" ? (billed.get(b.id) || 0) - (billed.get(a.id) || 0) : cs === "rcv" ? (rcv.get(b.id) || 0) - (rcv.get(a.id) || 0) : cs === "za" ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name));
+  return `<div class="panel">${perBar("Billed and received are for this period; dues are as on today.")}<div class="panel-head"><div class="filters"><input id="c-q" type="search" placeholder="Search name, GSTIN, PAN, phone, city" value="${esc(S.cq)}">${sortSel("c-sort", S.cSort, [["name", "Name — A to Z"], ["za", "Name — Z to A"], ["due", "Due now — high to low"], ["oldest", "Oldest due first"], ["billed", "Billed — high to low"], ["rcv", "Received — high to low"]])}</div>
     <div class="actions"><span class="pill">${clients().length} clients</span>${ONLINE ? `<button class="btn sm" data-act="bulkdrive">Create Drive folders</button>` : ""}<button class="btn sm" data-exp="clients:pdf">PDF</button><button class="btn sm" data-exp="clients:xlsx">Excel</button><button class="btn" data-new="client">+ Add client</button><button class="btn primary" data-tact="onboard">+ Onboard new client</button></div></div>
-    ${list.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Client</th><th>GSTIN / PAN</th><th>Contact</th><th class="r">Billed FY</th><th class="r">Received FY</th><th class="r">Due now</th><th class="r">Oldest due</th></tr></thead><tbody>
+    ${list.length ? `<div class="tablewrap"><table class="wide"><thead><tr><th>Client</th><th>GSTIN / PAN</th><th>Contact</th><th class="r">Billed</th><th class="r">Received</th><th class="r">Due now</th><th class="r">Oldest due</th></tr></thead><tbody>
     ${list.map(c => { const s = cd.get(c.id) || {bal: 0}; return `<tr class="click" data-client="${c.id}"><td><b>${esc(c.name)}</b>${c.city || c.stateCode ? `<div class="meta">${esc([c.city, stateName(c.stateCode)].filter(Boolean).join(", "))}</div>` : ""}<div class="filters" style="gap:4px;margin-top:4px">${c.portal && c.portal.on ? `<span class="pill in">Portal</span>` : ""}${docsOf(c.id).length ? `<span class="pill">${docsOf(c.id).length} docs</span>` : ""}${c.folder ? `<a class="pill acc" href="${esc(c.folder)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Drive ↗</a>` : ""}</div></td>
       <td class="small num">${esc(c.gstin || "")}${c.pan ? `<div class="meta">${esc(c.pan)}</div>` : ""}</td><td class="small">${esc(c.contact || "")}${c.phone ? `<div>${esc(c.phone)}</div>` : ""}${c.email ? `<div class="meta">${esc(c.email)}</div>` : ""}</td>
       <td class="r num">${dash(billed.get(c.id) || 0)}</td><td class="r num">${dash(rcv.get(c.id) || 0)}</td><td class="r num"><b>${s.bal < 0 ? "Advance " + money(-s.bal) : dash(s.bal)}</b></td><td class="r">${ageChip(s.oldest)}</td></tr>`; }).join("")}
@@ -3790,28 +3832,29 @@ function clientCard(id) {
       <div class="right"><button class="btn" data-cc="wa">WhatsApp</button><button class="btn" data-cc="mail">Email</button><button class="btn" data-cc="rcpt">Record receipt</button><button class="btn primary" data-cc="inv">New invoice</button></div></div>`, "wide");
   $("#modal-root .modal").addEventListener("click", e => { const b = e.target.closest("[data-cc],[data-cinv]"); if (!b) return;
     if (b.dataset.cinv) return invoiceView(vById(b.dataset.cinv));
-    const a = b.dataset.cc; if (a === "stpdf") { b.disabled = true; exportSpec(specLedger(id, S.fy), "pdf").finally(() => b.disabled = false); return; } if (a === "edit") ledgerForm(c); if (a === "upl") return uploadLinkFlow(id); if (a === "docs") clientDocs(id); if (a === "portal") clientPortal(id); if (a === "comp") return (c.comp || []).length ? compClient(id) : compSetup(id); if (a === "letter") { closeModal(); ltStart(S.lt.tpl || "eng_audit", id); S.lt.tpl = null; S.tab = "letters"; dirty(); return; } if (a === "ledger") { closeModal(); S.sel = id; S.tab = "ledgers"; dirty(); }
+    const a = b.dataset.cc; if (a === "stpdf") { b.disabled = true; exportSpec(specLedger(id, PER(), S.lSort === "new"), "pdf").finally(() => b.disabled = false); return; } if (a === "edit") ledgerForm(c); if (a === "upl") return uploadLinkFlow(id); if (a === "docs") clientDocs(id); if (a === "portal") clientPortal(id); if (a === "comp") return (c.comp || []).length ? compClient(id) : compSetup(id); if (a === "letter") { closeModal(); ltStart(S.lt.tpl || "eng_audit", id); S.lt.tpl = null; S.tab = "letters"; dirty(); return; } if (a === "ledger") { closeModal(); S.sel = id; S.tab = "ledgers"; dirty(); }
     if (a === "inv") invoiceForm(null, {party: id}); if (a === "rcpt") voucherForm("receipt", null, {party: id, amount: s.bal > 0 ? s.bal : ""});
     if (a === "wa") compose("whatsapp", {client: id, kind: s.bal > 0 ? "reminder" : "blank"}); if (a === "mail") compose("email", {client: id, kind: s.bal > 0 ? "reminder" : "blank"}); });
 }
 
 // ----- Ledgers
 function ledgerStatement(id) {
-  const l = led(id); const g = G(l.group); const y = S.fy; const s = fyStart(y) < B() ? B() : fyStart(y); const e = fyEnd(y);
+  const l = led(id); const g = G(l.group); const P = PER(); const s = P.s, e = P.e;
   const open = s === B() ? r2(l.opening || 0) : bal(id, addDays(s, -1)); let run = open; const rows = [];
   for (const v of vouchers()) { if (v.date < s || v.date > e) continue; for (const x of v.lines || []) if (x.l === id) { run = r2(run + x.dr - x.cr); rows.push({v, x, run}); } }
   const tDr = r2(rows.reduce((a, r) => a + r.x.dr, 0)), tCr = r2(rows.reduce((a, r) => a + r.x.cr, 0));
-  const other = v => { const o = (v.lines || []).filter(x => x.l !== id).map(x => lname(x.l)); return [...new Set(o)].join(", "); };
-  return `<div class="panel"><div class="panel-head"><div><div class="small muted">${esc(g.name)}${l.gstin ? " · GSTIN " + esc(l.gstin) : ""}</div><h2>${esc(l.name)} · FY ${fyLabel(y)}</h2></div>
+  const other = v => { const o = (v.lines || []).filter(x => x.l !== id).map(x => lname(x.l)); return [...new Set(o)].join(", "); }; const shown = S.lSort === "new" ? rows.slice().reverse() : rows;
+  return `<div class="panel"><div class="panel-head"><div><div class="small muted">${esc(g.name)}${l.gstin ? " · GSTIN " + esc(l.gstin) : ""}</div><h2>${esc(l.name)}</h2><div class="small muted">${esc(P.label)}</div></div>
     <div class="actions"><button class="btn sm" data-exp="led:pdf" data-id="${id}">${isClient(l) ? "Statement PDF" : "PDF"}</button><button class="btn sm" data-exp="led:xlsx" data-id="${id}">Excel</button>${isClient(l) && ONLINE ? `<button class="btn sm" data-exp="led:drive" data-id="${id}">Save to Drive</button>` : ""}${isClient(l) ? `<button class="btn sm" data-client="${id}">Client card</button>` : ""}<button class="btn sm" data-act="editled" data-id="${id}">Edit</button></div></div>
+    ${perBar()}<div class="filters" style="margin:-4px 0 10px">${sortSel("l-sort", S.lSort, [["old", "Date — oldest first"], ["new", "Date — newest first"]])}<span class="pill">${rows.length} entries</span></div>
     <div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Particulars</th><th>Vch</th><th class="r">Debit</th><th class="r">Credit</th><th class="r">Balance</th></tr></thead><tbody>
     <tr><td class="num">${dmy(s)}</td><td class="muted">Opening balance</td><td></td><td></td><td></td><td class="r num">${drcr(open)}</td></tr>
-    ${rows.map(r => `<tr class="click" data-v="${r.v.id}"><td class="num">${dmy(r.v.date)}</td><td><div class="part">${esc(other(r.v))}</div>${r.v.narration ? `<div class="meta">${esc(r.v.narration)}</div>` : ""}</td><td class="small muted num">${esc(VTYPE[r.v.type])} ${esc(vno(r.v))}</td>
+    ${shown.map(r => `<tr class="click" data-v="${r.v.id}"><td class="num">${dmy(r.v.date)}</td><td><div class="part">${esc(other(r.v))}</div>${r.v.narration ? `<div class="meta">${esc(r.v.narration)}</div>` : ""}</td><td class="small muted num">${esc(VTYPE[r.v.type])} ${esc(vno(r.v))}</td>
       <td class="r num">${r.x.dr ? amt(r.x.dr) : ""}</td><td class="r num">${r.x.cr ? amt(r.x.cr) : ""}</td><td class="r num">${drcr(r.run)}</td></tr>`).join("")}
     <tr class="total"><td></td><td>Closing balance</td><td></td><td class="r num">${amt(tDr)}</td><td class="r num">${amt(tCr)}</td><td class="r num">${drcr(run)}</td></tr></tbody></table></div></div>`;
 }
 function vLedgers() {
-  const q = S.lq.trim().toLowerCase(); const asOf = fyOf(todayStr()) === S.fy ? todayStr() : fyEnd(S.fy);
+  const q = S.lq.trim().toLowerCase(); const asOf = asOfOf(PER());
   if (!S.sel || !led(S.sel)) S.sel = (moneyLedgers()[0] || D().ledgers[0] || {}).id;
   const byG = new Map(); for (const l of D().ledgers) { if (q && !l.name.toLowerCase().includes(q)) continue; const k = l.group; if (!byG.has(k)) byG.set(k, []); byG.get(k).push(l); }
   const order = [...groupsAll().values()].sort((a, b) => "LAIE".indexOf(a.nature) - "LAIE".indexOf(b.nature));
@@ -3823,15 +3866,16 @@ function vLedgers() {
 // ----- Reports
 const REPS = [["pl", "Profit & Loss"], ["bs", "Balance Sheet"], ["tb", "Trial Balance"], ["rp", "Receipts & Payments"], ["gst", "GST summary"], ["tds", "TDS receivable"], ["age", "Client ageing"]];
 function vReports() {
+  const perRep = ["pl", "bs", "tb", "rp", "gst", "tds"].includes(S.rep), asOnly = S.rep === "bs" || S.rep === "tb";
   const body = {pl: rPL, bs: rBS, tb: rTB, rp: rRP, gst: rGST, tds: rTDS, age: rAge, mis: () => specHTML(specMIS(S.fy)), compr: () => (ensureComp(S.fy), specHTML(specComp(S.fy)))}[S.rep] || rPL;
   return `<div class="stack"><div class="panel-head" style="margin:0"><div class="seg">${REPS.map(([k, l]) => `<button data-rep="${k}" aria-pressed="${S.rep === k}">${l}</button>`).join("")}</div>
-    <div class="actions"><button class="btn" data-exp="rep:pdf">Download PDF</button><button class="btn" data-exp="rep:xlsx">Excel</button><button class="btn" data-act="xlsall">All reports (Excel)</button></div></div>${body()}</div>`;
+    <div class="actions"><button class="btn" data-exp="rep:pdf">Download PDF</button><button class="btn" data-exp="rep:xlsx">Excel</button><button class="btn" data-act="xlsall">All reports (Excel)</button></div></div>${perRep ? perBar(asOnly ? "Shown as on the ‘to’ date." : "") : ""}${body()}</div>`;
 }
 const rline = (l, v, cls = "", ind) => `<tr><td${ind ? ' style="padding-left:24px"' : ""}>${esc(l)}</td><td class="r num ${cls}">${amt(v)}</td></tr>`;
 function groupedRows(items) { const m = new Map(); for (const it of items) { const k = G(it.l.group).name; if (!m.has(k)) m.set(k, []); m.get(k).push(it); }
   return [...m].map(([g, arr]) => `<tr class="sub"><td>${esc(g)}</td><td class="r num">${amt(arr.reduce((a, x) => a + x.val, 0))}</td></tr>${arr.map(x => rline(x.l.name, x.val, "", 1)).join("")}`).join(""); }
-function rPL() { const pl = periodPL(fyStart(S.fy) < B() ? B() : fyStart(S.fy), fyEnd(S.fy));
-  return `<div class="grid cols-2"><div class="panel"><div class="panel-head"><h2>Income · FY ${fyLabel(S.fy)}</h2></div><table><tbody>${groupedRows(pl.inc) || `<tr><td class="muted">No income yet</td><td></td></tr>`}<tr class="total"><td>Total income</td><td class="r num">${amt(pl.incT)}</td></tr></tbody></table></div>
+function rPL() { const P = PER(); const pl = periodPL(P.s, P.e);
+  return `<div class="grid cols-2"><div class="panel"><div class="panel-head"><h2>Income · ${esc(P.label)}</h2></div><table><tbody>${groupedRows(pl.inc) || `<tr><td class="muted">No income yet</td><td></td></tr>`}<tr class="total"><td>Total income</td><td class="r num">${amt(pl.incT)}</td></tr></tbody></table></div>
   <div class="panel"><div class="panel-head"><h2>Expenditure</h2></div><table><tbody>${groupedRows(pl.exp) || `<tr><td class="muted">No expenses yet</td><td></td></tr>`}<tr class="total"><td>Total expenditure</td><td class="r num">${amt(pl.expT)}</td></tr>
   <tr class="total"><td>Excess of income over expenditure</td><td class="r num ${pl.net >= 0 ? "amt-in" : "amt-out"}">${money(pl.net)}</td></tr></tbody></table></div></div>`; }
 function bsData(D_) { const asOf = D_; const b = balances(asOf); const A = [], Lb = []; let ie = 0, openDiff = 0;
@@ -3840,21 +3884,21 @@ function bsData(D_) { const asOf = D_; const b = balances(asOf); const A = [], L
   const curPL = periodPL(fyStart(fyOf(asOf)) < B() ? B() : fyStart(fyOf(asOf)), asOf).net; openDiff = r2(openDiff);
   const At = r2(A.reduce((a, x) => a + x.val, 0)) + (openDiff < 0 ? -openDiff : 0), Lt = r2(Lb.reduce((a, x) => a + x.val, 0) + ie) + (openDiff > 0 ? openDiff : 0);
   return {A, Lb, ie: r2(ie), curPL, prevPL: r2(ie - curPL), openDiff, At: r2(At), Lt: r2(Lt)}; }
-function rBS() { const asOf = S.fy === fyOf(todayStr()) ? todayStr() : fyEnd(S.fy); const d = bsData(asOf);
+function rBS() { const asOf = asOfOf(PER()); const d = bsData(asOf);
   return `<div class="grid cols-2"><div class="panel"><div class="panel-head"><h2>Liabilities &amp; capital</h2><span class="small muted">as on ${dmy(asOf)}</span></div><table><tbody>${groupedRows(d.Lb)}
     <tr class="sub"><td>Income &amp; Expenditure A/c (surplus)</td><td class="r num">${amt(d.ie)}</td></tr>${rline("Brought forward", d.prevPL, "", 1)}${rline("Current year", d.curPL, "", 1)}
     ${d.openDiff > 0 ? rline("Difference in opening balances", d.openDiff) : ""}<tr class="total"><td>Total</td><td class="r num">${amt(d.Lt)}</td></tr></tbody></table></div>
   <div class="panel"><div class="panel-head"><h2>Assets</h2><span class="small muted">as on ${dmy(asOf)}</span></div><table><tbody>${groupedRows(d.A)}${d.openDiff < 0 ? rline("Difference in opening balances", -d.openDiff) : ""}<tr class="total"><td>Total</td><td class="r num">${amt(d.At)}</td></tr></tbody></table>
   ${d.openDiff ? `<p class="notice" style="margin-top:10px">Opening balances differ by ${money(Math.abs(d.openDiff))}. Check the opening balances of your ledgers (Dr should equal Cr).</p>` : ""}</div></div>`; }
 function tbRows(asOf) { const b = balances(asOf); const rows = []; for (const g of groupsAll().values()) { const ls_ = D().ledgers.filter(l => l.group === g.id && (b.get(l.id) || 0)); if (ls_.length) rows.push({g, ls: ls_.map(l => ({l, v: b.get(l.id)}))}); } return rows; }
-function rTB() { const asOf = S.fy === fyOf(todayStr()) ? todayStr() : fyEnd(S.fy); const rows = tbRows(asOf); let dr = 0, cr = 0;
+function rTB() { const asOf = asOfOf(PER()); const rows = tbRows(asOf); let dr = 0, cr = 0;
   const body = rows.map(r => { const gd = r2(r.ls.reduce((a, x) => a + Math.max(0, x.v), 0)), gc = r2(r.ls.reduce((a, x) => a + Math.max(0, -x.v), 0)); dr += gd; cr += gc;
     return `<tr class="sub"><td>${esc(r.g.name)}</td><td class="r num">${gd ? amt(gd) : ""}</td><td class="r num">${gc ? amt(gc) : ""}</td></tr>${r.ls.map(x => `<tr class="click" data-sel-go="${x.l.id}"><td style="padding-left:24px">${esc(x.l.name)}</td><td class="r num">${x.v > 0 ? amt(x.v) : ""}</td><td class="r num">${x.v < 0 ? amt(-x.v) : ""}</td></tr>`).join("")}`; }).join("");
   const diff = r2(dr - cr);
   return `<div class="panel"><div class="panel-head"><h2>Trial Balance as on ${dmy(asOf)}</h2></div><div class="tablewrap"><table><thead><tr><th>Particulars</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>${body}
     ${diff ? `<tr><td class="amt-out">Difference in opening balances</td><td class="r num">${diff < 0 ? amt(-diff) : ""}</td><td class="r num">${diff > 0 ? amt(diff) : ""}</td></tr>` : ""}
     <tr class="total"><td>Total</td><td class="r num">${amt(Math.max(dr, cr))}</td><td class="r num">${amt(Math.max(dr, cr))}</td></tr></tbody></table></div></div>`; }
-function rpData(y) { const s = fyStart(y) < B() ? B() : fyStart(y), e = fyEnd(y); const ml = moneyLedgers();
+function rpData(y) { const R = typeof y === "object" && y ? y : {s: fyStart(y) < B() ? B() : fyStart(y), e: fyEnd(y)}; const s = R.s, e = R.e; const ml = moneyLedgers();
   const ob = s === B() ? new Map(D().ledgers.map(l => [l.id, r2(l.opening || 0)])) : balances(addDays(s, -1)); const cb = balances(e);
   const rec = new Map(), pay = new Map();
   for (const v of vouchers()) { if (v.date < s || v.date > e || v.type === "contra") continue; const mIn = r2((v.lines || []).filter(x => isMoney(led(x.l))).reduce((a, x) => a + x.dr - x.cr, 0)); if (!mIn) continue;
@@ -3862,25 +3906,25 @@ function rpData(y) { const s = fyStart(y) < B() ? B() : fyStart(y), e = fyEnd(y)
     const tgt = mIn > 0 ? rec : pay; tgt.set(key, r2((tgt.get(key) || 0) + Math.abs(mIn))); }
   const toRows = m => [...m].map(([k, val]) => ({l: k === "__j" ? {name: "Journal adjustments", group: "suspense"} : led(k) || {name: "—", group: "suspense"}, val}));
   return {s, e, ml, ob, cb, rec: toRows(rec), pay: toRows(pay)}; }
-function rRP() { const d = rpData(S.fy); const obT = r2(d.ml.reduce((a, l) => a + (d.ob.get(l.id) || 0), 0)), cbT = r2(d.ml.reduce((a, l) => a + (d.cb.get(l.id) || 0), 0));
+function rRP() { const d = rpData(PER()); const obT = r2(d.ml.reduce((a, l) => a + (d.ob.get(l.id) || 0), 0)), cbT = r2(d.ml.reduce((a, l) => a + (d.cb.get(l.id) || 0), 0));
   const rT = r2(d.rec.reduce((a, x) => a + x.val, 0)), pT = r2(d.pay.reduce((a, x) => a + x.val, 0));
   return `<div class="grid cols-2"><div class="panel"><div class="panel-head"><h2>Receipts</h2><span class="small muted">${dmy(d.s)} to ${dmy(d.e)}</span></div><table><tbody><tr class="sub"><td>Opening balance</td><td class="r num">${amt(obT)}</td></tr>${d.ml.map(l => rline(l.name, d.ob.get(l.id) || 0, "", 1)).join("")}
     ${groupedRows(d.rec)}<tr class="total"><td>Total</td><td class="r num">${amt(obT + rT)}</td></tr></tbody></table></div>
   <div class="panel"><div class="panel-head"><h2>Payments</h2></div><table><tbody>${groupedRows(d.pay)}<tr class="sub"><td>Closing balance</td><td class="r num">${amt(cbT)}</td></tr>${d.ml.map(l => rline(l.name, d.cb.get(l.id) || 0, "", 1)).join("")}
     <tr class="total"><td>Total</td><td class="r num">${amt(pT + cbT)}</td></tr></tbody></table>${r2(obT + rT - pT - cbT) ? `<p class="notice">Doesn't tally by ${money(obT + rT - pT - cbT)}.</p>` : ""}</div></div>`; }
-function gstRows(y) { return vouchers().filter(v => v.type === "sales" && inFY(v.date, y)).map(v => ({v, c: led(v.f.party) || {}, iv: calcInvoice(v.f)})); }
-function rGST() { const rows = gstRows(S.fy); const byM = new Map(fyMonths(S.fy).map(m => [m, {n: 0, t: 0, c: 0, s: 0, i: 0, g: 0}]));
+function gstRows(y) { const R = typeof y === "object" && y ? y : {s: fyStart(y), e: fyEnd(y)}; return vouchers().filter(v => v.type === "sales" && inP(v.date, R)).map(v => ({v, c: led(v.f.party) || {}, iv: calcInvoice(v.f)})); }
+function rGST() { const P = PER(); const rows = gstRows(P); const byM = new Map(monthsIn(P).map(m => [m, {n: 0, t: 0, c: 0, s: 0, i: 0, g: 0}]));
   rows.forEach(r => { const o = byM.get(r.v.date.slice(0, 7)); o.n++; o.t += r.iv.taxable; o.c += r.iv.cgst; o.s += r.iv.sgst; o.i += r.iv.igst; o.g += r.iv.grand; });
   const T = [...byM.values()].reduce((a, o) => ({n: a.n + o.n, t: a.t + o.t, c: a.c + o.c, s: a.s + o.s, i: a.i + o.i, g: a.g + o.g}), {n: 0, t: 0, c: 0, s: 0, i: 0, g: 0});
-  return `<div class="panel"><div class="panel-head"><h2>Output GST by month · FY ${fyLabel(S.fy)}</h2><span class="small muted">For GSTR-1 / GSTR-3B</span></div><div class="tablewrap"><table class="wide"><thead><tr><th>Month</th><th class="r">Invoices</th><th class="r">Taxable value</th><th class="r">CGST</th><th class="r">SGST</th><th class="r">IGST</th><th class="r">Invoice value</th></tr></thead><tbody>
+  return `<div class="panel"><div class="panel-head"><h2>Output GST by month · ${esc(P.label)}</h2><span class="small muted">For GSTR-1 / GSTR-3B</span></div><div class="tablewrap"><table class="wide"><thead><tr><th>Month</th><th class="r">Invoices</th><th class="r">Taxable value</th><th class="r">CGST</th><th class="r">SGST</th><th class="r">IGST</th><th class="r">Invoice value</th></tr></thead><tbody>
     ${[...byM].filter(([, o]) => o.n).map(([m, o]) => `<tr><td>${monLabel(m)}</td><td class="r num">${o.n}</td><td class="r num">${amt(o.t)}</td><td class="r num">${amt(o.c)}</td><td class="r num">${amt(o.s)}</td><td class="r num">${amt(o.i)}</td><td class="r num">${amt(o.g)}</td></tr>`).join("") || `<tr><td colspan="7" class="muted">No invoices this year.</td></tr>`}
     <tr class="total"><td>Total</td><td class="r num">${T.n}</td><td class="r num">${amt(T.t)}</td><td class="r num">${amt(T.c)}</td><td class="r num">${amt(T.s)}</td><td class="r num">${amt(T.i)}</td><td class="r num">${amt(T.g)}</td></tr></tbody></table></div></div>
   <div class="panel"><div class="panel-head"><h2>Invoice-wise (B2B / B2C)</h2></div><div class="tablewrap"><table class="wide"><thead><tr><th>Date</th><th>Invoice</th><th>Client</th><th>GSTIN</th><th>Supply</th><th class="r">Taxable</th><th class="r">Tax</th><th class="r">Total</th></tr></thead><tbody>
     ${rows.map(r => `<tr class="click" data-inv="${r.v.id}"><td class="num">${dmy(r.v.date)}</td><td class="num">${esc(r.v.no)}</td><td>${esc(r.c.name)}</td><td class="num small">${esc(r.c.gstin || "B2C")}</td><td class="small">${({intra: "Intra-state", inter: "Inter-state", export: "Export (LUT)", nogst: "No GST"})[r.v.f.supply]}</td>
       <td class="r num">${amt(r.iv.taxable)}</td><td class="r num">${amt(r.iv.cgst + r.iv.sgst + r.iv.igst)}</td><td class="r num">${amt(r.iv.grand)}</td></tr>`).join("")}</tbody></table></div></div>`; }
-function rTDS() { const m = new Map(); vouchers().forEach(v => { if (v.type === "receipt" && +v.f.tds && inFY(v.date, S.fy)) { const o = m.get(v.f.party) || {t: 0, g: 0, n: 0}; o.t += +v.f.tds; o.g += +v.f.amount + +v.f.tds; o.n++; m.set(v.f.party, o); } });
+function rTDS() { const P = PER(); const m = new Map(); vouchers().forEach(v => { if (v.type === "receipt" && +v.f.tds && inP(v.date, P)) { const o = m.get(v.f.party) || {t: 0, g: 0, n: 0}; o.t += +v.f.tds; o.g += +v.f.amount + +v.f.tds; o.n++; m.set(v.f.party, o); } });
   const rows = [...m].sort((a, b) => b[1].t - a[1].t); const T = rows.reduce((a, [, o]) => a + o.t, 0);
-  return `<div class="panel"><div class="panel-head"><h2>TDS deducted by clients · FY ${fyLabel(S.fy)}</h2><span class="small muted">Match with Form 26AS / AIS · ledger balance ${drcr(bal(SYS.tds, fyEnd(S.fy)))}</span></div><table><thead><tr><th>Client</th><th>PAN</th><th class="r">Receipts</th><th class="r">Gross</th><th class="r">TDS</th></tr></thead><tbody>
+  return `<div class="panel"><div class="panel-head"><h2>TDS deducted by clients · ${esc(P.label)}</h2><span class="small muted">Match with Form 26AS / AIS · ledger balance ${drcr(bal(SYS.tds, fyEnd(S.fy)))}</span></div><table><thead><tr><th>Client</th><th>PAN</th><th class="r">Receipts</th><th class="r">Gross</th><th class="r">TDS</th></tr></thead><tbody>
     ${rows.map(([id, o]) => `<tr><td>${esc(lname(id))}</td><td class="num small">${esc((led(id) || {}).pan || "")}</td><td class="r num">${o.n}</td><td class="r num">${amt(o.g)}</td><td class="r num">${amt(o.t)}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No TDS recorded this year.</td></tr>`}
     <tr class="total"><td>Total</td><td></td><td></td><td></td><td class="r num">${amt(T)}</td></tr></tbody></table></div>`; }
 function rAge() { const list = [...clientDues().values()].filter(s => s.bal).sort((a, b) => b.bal - a.bal); const T = [0, 0, 0, 0]; let tb = 0; list.forEach(s => { tb += s.bal; s.age.forEach((v, i) => T[i] += v); });
@@ -3972,8 +4016,13 @@ function vSettings() {
 function bind() {
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
   on("unlock", "submit", onUnlock); on("create", "submit", onCreate);
-  on("fy-sel", "change", e => { S.fy = +e.target.value; S.f.month = "all"; dirty(); });
-  on("f-month", "change", e => { S.f.month = e.target.value; dirty(); }); on("f-type", "change", e => { S.f.type = e.target.value; dirty(); });
+  on("fy-sel", "change", e => { S.fy = +e.target.value; S.f.month = "all"; S.per = null; dirty(); });
+  on("per-p", "change", e => { const P = PER(); S.per = {fy: S.fy, p: e.target.value, s: P.s, e: P.e}; dirty(); });
+  // editing one end never flips the range: a 'from' after 'to' pulls 'to' along (and vice versa)
+  const perDate = which => () => { let a = $("#per-s").value, b = $("#per-e").value; if (!a || !b) return; if (a > b) { if (which === "s") b = a; else a = b; } S.per = {fy: S.fy, p: "c", s: a, e: b}; dirty(); };
+  on("per-s", "change", perDate("s")); on("per-e", "change", perDate("e"));
+  on("f-sort", "change", e => { S.f.sort = e.target.value; ls.set("vsort", S.f.sort); dirty(); }); on("inv-sort", "change", e => { S.invSort = e.target.value; ls.set("isort", S.invSort); dirty(); });
+  on("c-sort", "change", e => { S.cSort = e.target.value; ls.set("csort", S.cSort); dirty(); }); on("l-sort", "change", e => { S.lSort = e.target.value; ls.set("lsort", S.lSort); dirty(); }); on("f-type", "change", e => { S.f.type = e.target.value; dirty(); });
   on("f-q", "input", e => { S.f.q = e.target.value; dirty(); }); on("l-q", "input", e => { S.lq = e.target.value; dirty(); });
   on("c-q", "input", e => { S.cq = e.target.value; dirty(); }); on("inv-q", "input", e => { S.invQ = e.target.value; dirty(); });
   on("set-form", "submit", saveSettings); bindWeb(); bindOwner();
@@ -3998,7 +4047,7 @@ document.addEventListener("click", e => {
   if (d.lview) { S.lt.view = d.lview; dirty(); return; } if (d.lt) { ltStart(d.lt); dirty(); window.scrollTo(0, 0); return; } if (d.lact) return letterAction(d.lact, el);
   if (d.lopen) return letterOpen(d.lopen); if (d.lpdf) { const l = D().letters.find(x => x.id === d.lpdf); if (l) { const st = {tpl: l.tpl, client: l.client, date: l.date, f: l.f || {}, sub: l.subRaw != null ? l.subRaw : l.sub, body: l.body, to: l.toRaw != null ? l.toRaw : l.to, ref: l.ref}; const m = letterModel(st); letterPDF(m).then(b => saveFile(letterFileBase(m) + ".pdf", b)); } return; }
   if (d.ldel) { if (!el.dataset.c) { el.dataset.c = 1; el.textContent = "Confirm"; return; } removeRec("letters", d.ldel); commit(); return; }
-  if (d.exp) { const [k, fmt] = d.exp.split(":"); const spec = k === "comp" ? specComp(S.fy) : k === "mis" ? specMIS(S.fy) : k === "rep" ? REPORT_SPECS[S.rep]() : k === "led" ? specLedger(d.id, S.fy) : k === "day" ? specDay(S.fy, S.f.month) : k === "invreg" ? specInvoices(S.fy) : specClients();
+  if (d.exp) { const [k, fmt] = d.exp.split(":"); const spec = k === "comp" ? specComp(S.fy) : k === "mis" ? specMIS(S.fy) : k === "rep" ? REPORT_SPECS[S.rep]() : k === "led" ? specLedger(d.id, PER(), S.lSort === "new") : k === "day" ? specDay(PER(), S.f) : k === "invreg" ? specInvoices(PER(), {st: S.invSt, q: S.invQ, sort: S.invSort}) : specClients();
     const old = el.textContent; el.disabled = true; el.textContent = "Preparing…";
     if (fmt === "drive") { reportPDF(spec).then(b => saveCopyToDrive(d.id, b, spec.fileName.replace(/[\\/:*?"<>|]+/g, "-") + ".pdf", "08 Invoices & Statements")).catch(() => toast("Couldn't create the PDF.")).finally(() => { el.disabled = false; el.textContent = old; }); return; }
     exportSpec(spec, fmt).finally(() => { el.disabled = false; el.textContent = old; }); return; }
@@ -4010,6 +4059,7 @@ document.addEventListener("click", e => {
   if (d.msg) return compose(d.msg, {client: d.id, kind: "reminder"}); if (d.editgroup) return groupForm(D().groups.find(g => g.id === d.editgroup));
   const a = d.act;
   if (a === "newmenu") { if (menu) menu.hidden = !menu.hidden; return; }
+  if (a === "perfy") { S.per = {fy: S.fy, p: "fy", s: "", e: ""}; dirty(); return; }
   if (a === "lock") return lock(); if (a === "privacy") { S.priv = !S.priv; ls.set("priv", S.priv ? "1" : ""); dirty(); toast(S.priv ? "Privacy on — figures and client names are hidden" : "Figures visible"); return; } if (a === "editled") return ledgerForm(led(d.id)); if (a === "newgroup") return groupForm(null);
   if (a === "xlsall") return exportAll(); if (a === "backup") return doBackup(); if (a === "restore") return restoreFlow(); if (a === "linkfile") return linkFile();
   if (a === "bulkdrive") return bulkCreateFolders(el); if (a === "notesall") { S.notesAll = !S.notesAll; dirty(); return; }
@@ -4442,8 +4492,8 @@ function groupForm(g) {
 
 // ----- Excel export of all reports
 async function exportAll() {
-  try { const y = S.fy; const specs = [specPL(y), specBS(y), specTB(y), specRP(y), specGST(y), specTDS(y), specAge(), specInvoices(y), specDay(y), specClients()];
-    await saveFile("PNA Accounts FY " + fyLabel(y) + ".xlsx", await reportXLSX(specs)); } catch (e) { console.warn(e); toast(e && e.message === "lib" ? "Couldn't load the Excel library. Check your internet connection." : "Couldn't create the Excel file."); }
+  try { const y = PER(); const specs = [specPL(y), specBS(y), specTB(y), specRP(y), specGST(y), specTDS(y), specAge(), specInvoices(y), specDay(y), specClients()];
+    await saveFile("PNA Accounts " + y.file + ".xlsx", await reportXLSX(specs)); } catch (e) { console.warn(e); toast(e && e.message === "lib" ? "Couldn't load the Excel library. Check your internet connection." : "Couldn't create the Excel file."); }
 }
 
 async function cleanSignature(file) {
@@ -6542,7 +6592,7 @@ const IC = {home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-
   copy: "M9 9h10v12H9zM5 15V3h10", spark: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z", file: "M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5", ext: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
   vin: "M17 7 7 17M7 9v8h8", vout: "M7 17 17 7M9 7h8v8", swap: "M7 7h12l-3-3M17 17H5l3 3", book: "M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h10", user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
   eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", eyeoff: "M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2",
-  search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5", plus: "M12 5v14M5 12h14", refresh: "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"};
+  search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5", plus: "M12 5v14M5 12h14", refresh: "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7", cal: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"};
 const ic = (k, cls) => `<svg class="ic ${cls || ""}" viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[k]}"/></svg>`;
 const tile = (k, tone) => `<span class="tile t-${tone}">${ic(k)}</span>`;
 const PNAV = [["home", "Home", "home", "navy"], ["bills", "Bills", "bills", "blue"], ["comp", "Compliance", "comp", "orange"], ["docs", "Documents", "docs", "teal"], ["calc", "Calculators", "calc", "purple"], ["ask", "Ask us", "ask", "green"], ["pay", "Pay & contact", "pay", "gold"]];
